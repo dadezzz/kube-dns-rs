@@ -25,8 +25,8 @@ rustls = { version = "0.23.43", default-features = false, features = ["aws-lc-rs
 schemars = "1.2.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-serde_yaml = "0.9.34"
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi", "fmt", "std"] }
+yaml_serde = "0.10.7"

@@ -20,7 +20,7 @@ impl ForwardZoneHandlerWrapper {
     pub fn new() -> Self {
         let mut forward_handler_opts = ResolverOpts::default();
         forward_handler_opts.use_hosts_file = ResolveHosts::Never;
-        forward_handler_opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
+        forward_handler_opts.ip_strategy = LookupIpStrategy::Ipv4Only;
 
         let forwarder = ForwardZoneHandler::builder_tokio(ForwardConfig {
             name_servers: [CLOUDFLARE.tls(), QUAD9.tls()]
