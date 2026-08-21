@@ -1,0 +1,34 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  build:
+    container:
+      image: quay.io/containers/aio:latest@sha256:afb15f614f2ca1002f6e12e26ed9b40a6bc58785ea6940e259f6010927238da5
+    env:
+      IMAGE: git.zarantonello.dev/${{ forge.repository }}:${{ forge.ref_name }}
+    name: Build the container
+    runs-on: srv-home
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ forge.token }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Disable fuse-overlayfs
+        run: |
+          sed -i 's|mountopt = "nodev,fsync=0"||' /etc/containers/storage.conf;
+          sed -i 's|mount_program = "/usr/bin/fuse-overlayfs"||' /etc/containers/storage.conf;
+      - name: Login to the container registry
+        run: podman login git.zarantonello.dev -u ${{ secrets.REGISTRY_USER }} -p ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build the container image
+        run: podman build --tag ${{ env.IMAGE }} .
+      - name: Push the container image
+        run: podman push ${{ env.IMAGE }}
+
+name: build.yaml
+
+"on":
+  push:
+    tags:
+      - "*"

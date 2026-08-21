@@ -1,0 +1,19 @@
+blocker:
+  allowlist_urls: []
+    # - https://badblock.celenity.dev/wildcards-star/push_whitelist.txt
+  blocklist_urls: []
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/dyndns.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/fake-onlydomains.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/gambling.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/hoster-onlydomains.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/native.samsung.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/native.tiktok.extended.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/native.winoffice.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/native.xiaomi.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro.plus.txt
+    # - https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/tif.txt
+listeners:
+  tcp: "[::]:1053"
+  udp: "[::]:1053"
+kubernetes:
+  cluster_domain: k8s.zarantonello.dev

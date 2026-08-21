@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "assignees": ["davide"],
+  "extends": [
+    "config:best-practices",
+    "customManagers:dockerfileVersions",
+    ":semanticCommits"
+  ],
+  "packageRules": [
+    {
+      "automerge": true,
+      "groupName": "CI dependencies",
+      "groupSlug": "ci",
+      "matchFileNames": [".devcontainer/**", ".forgejo/**"],
+      "matchUpdateTypes": ["!major"]
+    },
+    // Group also the CI image update in Dockerfile.
+    {
+      "automerge": true,
+      "groupName": "CI dependencies",
+      "groupSlug": "ci",
+      "matchPackageNames": ["git.zarantonello.dev/infra/ci-rust"]
+    }
+    {
+      "automerge": true,
+      "matchFileNames": ["Dockerfile"],
+      "matchUpdateTypes": ["!major"],
+    },
+  ]
+}

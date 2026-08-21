@@ -1,0 +1,31 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  check:
+    container:
+      image: git.zarantonello.dev/infra/ci-rust:latest@sha256:e6da113e6a9835d5fb8bc1ec19357e07d3f31c3d30a729180cbd4469ada8268a
+      volumes:
+        - forgejo-runner-cache-cargo-registry:/usr/local/cargo/registry
+        - forgejo-runner-cache-projects-kube-dns-rs:/target
+    env:
+      CARGO_TARGET_DIR: /target
+    name: Checks
+    runs-on: srv-home
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ secrets.SEMANTIC_RELEASE_TOKEN }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Run linter
+        run: cargo clippy
+      - name: Run types and syntax check
+        run: cargo check
+
+name: check.yaml
+
+"on":
+  pull_request:
+    branches:
+      - main

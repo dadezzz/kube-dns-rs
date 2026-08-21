@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-dns-rs
+  namespace: kube-dns-rs
+spec:
+  selector:
+    matchLabels:
+      apps.zarantonello.dev/name: kube-dns-rs
+      apps.zarantonello.dev/namespace: kube-dns-rs
+  template:
+    metadata:
+      labels:
+        apps.zarantonello.dev/name: kube-dns-rs
+        apps.zarantonello.dev/namespace: kube-dns-rs
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # Avoid having multiple instances of the same pod in a single node.
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    apps.zarantonello.dev/name: kube-dns-rs
+                    apps.zarantonello.dev/namespace: kube-dns-rs
+                topologyKey: kubernetes.io/hostname
+              weight: 50
+      containers:
+        - image: git.zarantonello.dev/projects/kube-dns-rs:0.0.1
+          name: kube-dns-rs
+          ports:
+            - containerPort: 1053
+              name: dns-tcp
+              protocol: TCP
+            - containerPort: 1053
+              name: dns-udp
+              protocol: UDP
+          startupProbe:
+            tcpSocket:
+              port: 1053
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - mountPath: /etc/kube-dns-rs/config.yaml
+              name: config
+      enableServiceLinks: false
+      securityContext:
+        runAsGroup: 3146
+        runAsNonRoot: true
+        runAsUser: 3146
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: kube-dns-rs
+      volumes:
+        - configMap:
+            name: kube-dns-rs-config
+          name: config

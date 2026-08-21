@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-dns-rs
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - watch
+  - apiGroups:
+    - zarantonello.dev
+    resources:
+    - dnsrecords
+    verbs:
+    - watch

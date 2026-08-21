@@ -1,0 +1,14 @@
+apiVersion: zarantonello.dev/v1
+kind: DnsRecord
+metadata:
+  name: example-com
+  namespace: your-namespace
+spec:
+  fqdn: example.com
+  data:
+    - A:
+        addresses:
+          - 192.0.2.1
+    - AAAA:
+        addresses:
+          - 2001:db8::1

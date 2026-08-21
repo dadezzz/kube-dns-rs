@@ -1,0 +1,14 @@
+services:
+  workspace:
+    entrypoint: sleep infinity
+    image: git.zarantonello.dev/infra/ci-rust:latest@sha256:e6da113e6a9835d5fb8bc1ec19357e07d3f31c3d30a729180cbd4469ada8268a
+    ports:
+      - 1053:1053/tcp
+      - 1053:1053/udp
+    volumes:
+      - ..:/workspace:z,cached
+      - cargo-cache:/usr/local/cargo/registry
+    working_dir: /workspace
+
+volumes:
+  cargo-cache: {}

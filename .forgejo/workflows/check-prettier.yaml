@@ -1,0 +1,24 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  check-prettier:
+    container:
+      image: git.zarantonello.dev/infra/ci-prettier:latest@sha256:2a4a435bf81a315ed34cc20a60ed1b4f4658ee6f7ddd0f77d17136adacbf3360
+    name: Check files formatting
+    runs-on: srv-generic
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ forge.token }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Run prettier
+        run: prettier --check .
+
+name: check-prettier.yaml
+
+"on":
+  pull_request:
+    branches:
+      - main

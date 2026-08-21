@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-dns-rs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kube-dns-rs
+subjects:
+  - kind: ServiceAccount
+    name: kube-dns-rs
+    namespace: kube-dns-rs

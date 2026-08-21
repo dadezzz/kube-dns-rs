@@ -1,0 +1,12 @@
+*.md
+.devcontainer/
+.dockerignore
+.forgejo/
+.git/
+.gitignore
+.releaserc.json
+.renovaterc.json
+.yamllint.yaml
+Dockerfile
+examples/
+target/

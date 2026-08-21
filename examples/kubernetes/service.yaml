@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-dns-rs
+  namespace: kube-dns-rs
+spec:
+  # Important to set this to the address configured in the k8s configuration.
+  clusterIP: 10.97.0.10
+  ports:
+    - name: dns-tcp
+      port: 53
+      protocol: TCP
+      targetPort: dns-tcp
+    - name: dns-udp
+      port: 53
+      protocol: UDP
+      targetPort: dns-udp
+  selector:
+    apps.zarantonello.dev/name: kube-dns-rs
+    apps.zarantonello.dev/namespace: kube-dns-rs

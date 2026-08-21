@@ -1,0 +1,24 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  check-yamllint:
+    container:
+      image: git.zarantonello.dev/infra/ci-yamllint:latest@sha256:f2458690446070463f3bf8f34994ef3094bdbacc51c3257e57219043b73f7a43
+    name: Lint yaml files
+    runs-on: srv-generic
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ forge.token }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Run yamllint
+        run: yamllint .
+
+name: check-yamllint.yaml
+
+"on":
+  pull_request:
+    branches:
+      - main

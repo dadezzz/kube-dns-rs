@@ -1,0 +1,24 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  check:
+    container:
+      image: git.zarantonello.dev/infra/ci-rust:latest@sha256:e6da113e6a9835d5fb8bc1ec19357e07d3f31c3d30a729180cbd4469ada8268a
+    name: Check with formatters
+    runs-on: srv-generic
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ secrets.SEMANTIC_RELEASE_TOKEN }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Run formatter
+        run: cargo fmt --check
+
+name: check-formatter.yaml
+
+"on":
+  pull_request:
+    branches:
+      - main

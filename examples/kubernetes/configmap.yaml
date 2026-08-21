@@ -1,0 +1,12 @@
+apiVersion: v1
+data:
+  config.yaml: |
+    blocker:
+      allowlist_urls: []
+      blocklist_urls: []
+    listeners:
+      tcp: "[::]:1053"
+      udp: "[::]:1053"
+    kubernetes:
+      cluster_domain: k8s.zarantonello.dev
+kind: ConfigMap
