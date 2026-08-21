@@ -1,9 +1,11 @@
+use std::net::{IpAddr, Ipv4Addr};
+
 use hickory_server::{
     proto::{
         op::ResponseCode,
         rr::{LowerName, RecordType, TSigResponseContext},
     },
-    resolver::config::{CLOUDFLARE, LookupIpStrategy, QUAD9, ResolveHosts, ResolverOpts},
+    resolver::config::{ResolveHosts, ResolverOpts, ServerGroup},
     server::{Request, RequestInfo},
     store::forwarder::{ForwardConfig, ForwardZoneHandler},
     zone_handler::{
@@ -12,15 +14,37 @@ use hickory_server::{
     },
 };
 
+pub const CLOUDFLARE: ServerGroup<'static> = ServerGroup {
+    ips: &[
+        IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)),
+        IpAddr::V4(Ipv4Addr::new(1, 0, 0, 1)),
+        // IpAddr::V6(Ipv6Addr::new(0x2606, 0x4700, 0x4700, 0, 0, 0, 0, 0x1111)),
+        // IpAddr::V6(Ipv6Addr::new(0x2606, 0x4700, 0x4700, 0, 0, 0, 0, 0x1001)),
+    ],
+    server_name: "cloudflare-dns.com",
+    path: "/dns-query",
+};
+
+pub const QUAD9: ServerGroup<'static> = ServerGroup {
+    ips: &[
+        IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)),
+        IpAddr::V4(Ipv4Addr::new(149, 112, 112, 112)),
+        // IpAddr::V6(Ipv6Addr::new(0x2620, 0x00fe, 0, 0, 0, 0, 0, 0x00fe)),
+        // IpAddr::V6(Ipv6Addr::new(0x2620, 0x00fe, 0, 0, 0, 0, 0, 0x0009)),
+    ],
+    server_name: "dns.quad9.net",
+    path: "/dns-query",
+};
+
 pub struct ForwardZoneHandlerWrapper {
     inner: ForwardZoneHandler,
 }
 
 impl ForwardZoneHandlerWrapper {
+    #[must_use]
     pub fn new() -> Self {
         let mut forward_handler_opts = ResolverOpts::default();
         forward_handler_opts.use_hosts_file = ResolveHosts::Never;
-        forward_handler_opts.ip_strategy = LookupIpStrategy::Ipv4Only;
 
         let forwarder = ForwardZoneHandler::builder_tokio(ForwardConfig {
             name_servers: [CLOUDFLARE.tls(), QUAD9.tls()]

@@ -54,10 +54,10 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
             RecordType::A => {
                 let lock = self.context.read().await;
 
-                lock.get_entry(&query_name).and_then(|data| {
+                lock.get_entry(query_name).and_then(|data| {
                     utils::new_a_record_set(
                         query_name,
-                        data.into_iter()
+                        data.iter()
                             .filter_map(|d| match d {
                                 DnsRecordData::A { addresses } => Some(addresses),
                                 _ => None,
@@ -71,10 +71,10 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
             RecordType::AAAA => {
                 let lock = self.context.read().await;
 
-                lock.get_entry(&query_name).and_then(|data| {
+                lock.get_entry(query_name).and_then(|data| {
                     utils::new_aaaa_record_set(
                         query_name,
-                        data.into_iter()
+                        data.iter()
                             .filter_map(|d| match d {
                                 DnsRecordData::AAAA { addresses } => Some(addresses),
                                 _ => None,

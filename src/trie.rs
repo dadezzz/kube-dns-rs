@@ -10,6 +10,7 @@ pub struct Trie<V: Clone> {
 }
 
 impl<V: Clone> Trie<V> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             root: TrieNode {

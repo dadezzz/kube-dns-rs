@@ -127,7 +127,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
                             IpAddr::V6(_) => None,
                         }),
                     TTL,
-                )
+                );
             }
             RecordType::AAAA => {
                 record_set = utils::new_aaaa_record_set(
@@ -141,7 +141,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
                             IpAddr::V6(ipv6_addr) => Some(*ipv6_addr),
                         }),
                     TTL,
-                )
+                );
             }
             RecordType::SOA => {
                 // Primary Name Server (MNAME) and Admin Email (RNAME - replace @ with .)
@@ -157,19 +157,20 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
                 let rname = self.cluster_domain.prepend_label("admin").unwrap();
 
                 let soa_rdata = rr::RData::SOA(rr::rdata::SOA::new(
-                    mname, rname,      //
-                    2026082101, // Serial number (YYYYMMDDNN format)
-                    3600,       // Refresh: 1 hour
-                    1800,       // Retry: 30 minutes
-                    604800,     // Expire: 1 week
-                    300,        // Minimum / Negative Caching TTL: 5 minutes (300s)
+                    mname,
+                    rname,
+                    2026_08_21_01, // Serial number (YYYYMMDDNN format)
+                    3600,          // Refresh: 1 hour
+                    1800,          // Retry: 30 minutes
+                    604_800,       // Expire: 1 week
+                    300,           // Minimum / Negative Caching TTL: 5 minutes (300s)
                 ));
 
                 let mut rs =
                     RecordSet::new(self.cluster_domain.clone().into(), RecordType::SOA, TTL);
                 rs.add_rdata(soa_rdata);
 
-                record_set = Some(rs)
+                record_set = Some(rs);
             }
             _ => {}
         }

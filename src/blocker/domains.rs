@@ -8,7 +8,7 @@ use rayon::{
 
 use crate::{trie::Trie, utils};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Status {
     Blocked,
     Allowed,
@@ -21,6 +21,7 @@ pub struct BlockListZoneHandlerDomains {
 }
 
 impl BlockListZoneHandlerDomains {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -33,7 +34,7 @@ impl BlockListZoneHandlerDomains {
 
         list.iter()
             .map(utils::name_to_labels)
-            .for_each(|labels| trie.insert(labels, status.clone()));
+            .for_each(|labels| trie.insert(labels, status));
 
         self.tries.insert(url.to_owned(), trie);
     }
@@ -70,6 +71,7 @@ impl BlockListZoneHandlerDomains {
         self.add_list(url, &list, Status::Blocked);
     }
 
+    #[must_use]
     pub fn status_of(&self, name: &Name) -> (Vec<(String, Name)>, Status) {
         let path = utils::name_to_labels(name);
 
@@ -92,7 +94,7 @@ impl BlockListZoneHandlerDomains {
                         Some(Status::Blocked) => {
                             if acc.1 == Some(Status::Allowed) {
                                 return acc;
-                            } else if acc.1 == None {
+                            } else if acc.1.is_none() {
                                 acc.0 = Vec::new();
                                 acc.1 = Some(Status::Blocked);
                             }

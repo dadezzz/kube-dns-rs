@@ -47,6 +47,7 @@ impl KubernetesCrdContext {
         }
     }
 
+    #[must_use]
     pub fn get_entry(&self, name: &Name) -> Option<&Vec<DnsRecordData>> {
         let labels = utils::name_to_labels(name);
         self.by_labels.get(labels)

@@ -11,6 +11,7 @@ use hickory_server::{
     zone_handler::{AuthLookup, LookupControlFlow, LookupError, LookupOptions, LookupRecords},
 };
 
+#[must_use]
 pub fn handler_search_aggregator(
     lookups: Vec<LookupControlFlow<AuthLookup>>,
     lookup_options: LookupOptions,
@@ -32,10 +33,10 @@ pub fn handler_search_aggregator(
 
                 match additionals {
                     Some(LookupRecords::ManyRecords(_, records)) => {
-                        additional_records.extend(records)
+                        additional_records.extend(records);
                     }
                     Some(LookupRecords::Records { records, .. }) => {
-                        additional_records.push(records)
+                        additional_records.push(records);
                     }
                     _ => {}
                 }
@@ -48,7 +49,7 @@ pub fn handler_search_aggregator(
                     _ => {}
                 }
             }
-            LookupControlFlow::Skip => continue,
+            LookupControlFlow::Skip => {}
             err_or_break => return err_or_break,
         }
     }
@@ -68,6 +69,7 @@ pub fn handler_search_aggregator(
     LookupControlFlow::Continue(Ok(auth_lookup))
 }
 
+#[must_use]
 pub fn new_a_record_set<N, I>(name: N, addresses: I, ttl: u32) -> Option<RecordSet>
 where
     N: Into<Name>,
@@ -89,6 +91,7 @@ where
     Some(record_set)
 }
 
+#[must_use]
 pub fn new_aaaa_record_set<N, I>(name: N, addresses: I, ttl: u32) -> Option<RecordSet>
 where
     N: Into<Name>,
@@ -110,10 +113,12 @@ where
     Some(record_set)
 }
 
+#[must_use]
 pub fn break_with_nxdomain() -> LookupControlFlow<AuthLookup> {
     LookupControlFlow::Break(Err(LookupError::ResponseCode(ResponseCode::NXDomain)))
 }
 
+#[must_use]
 pub fn continue_with_recordset(
     lookup_options: LookupOptions,
     authority_record_set: RecordSet,
@@ -126,6 +131,7 @@ pub fn continue_with_recordset(
     LookupControlFlow::Continue(Ok(AuthLookup::answers(authorities, additionals)))
 }
 
-pub fn name_to_labels<'a>(name: &'a Name) -> Vec<&'a str> {
+#[must_use]
+pub fn name_to_labels(name: &Name) -> Vec<&str> {
     name.iter().map(|l| str::from_utf8(l).unwrap()).collect()
 }

@@ -9,10 +9,12 @@ pub enum ServiceEntry {
 }
 
 impl ServiceEntry {
+    #[must_use]
     pub fn cluster_ip(addresses: Vec<IpAddr>) -> Self {
         Self::ClusterIpService { addresses }
     }
 
+    #[must_use]
     pub fn headless() -> Self {
         Self::HeadlessService
     }
@@ -25,18 +27,17 @@ impl TryFrom<&Service> for ServiceEntry {
         let spec = svc.spec.as_ref().unwrap();
 
         if spec.cluster_ip.as_ref().unwrap() == "None" {
-            return Ok(Self::HeadlessService);
+            return Ok(Self::headless());
         }
 
-        Ok(Self::ClusterIpService {
-            addresses: spec
-                .cluster_ips
+        Ok(Self::cluster_ip(
+            spec.cluster_ips
                 .as_ref()
                 .unwrap_or(&Vec::new())
                 .iter()
                 .map(|ip| ip.parse().unwrap())
                 .collect(),
-        })
+        ))
     }
 }
 
@@ -63,10 +64,11 @@ pub enum EndpointSliceEndpoint {
 }
 
 impl EndpointSliceEndpoint {
+    #[must_use]
     pub fn addresses(&self) -> &Vec<IpAddr> {
         match self {
-            EndpointSliceEndpoint::Kubernetes { addresses, .. } => addresses,
-            EndpointSliceEndpoint::External { addresses } => addresses,
+            EndpointSliceEndpoint::Kubernetes { addresses, .. }
+            | EndpointSliceEndpoint::External { addresses } => addresses,
         }
     }
 }
@@ -88,7 +90,7 @@ impl TryFrom<&EndpointSlice> for EndpointSliceEntry {
 
         let mut dns_endpoints = Vec::new();
 
-        eps.endpoints.as_ref().map(|endpoints| {
+        if let Some(endpoints) = eps.endpoints.as_ref() {
             for ep in endpoints {
                 // Filter endpoints that aren't ready or that are terminating.
                 if let Some(conditions) = ep.conditions.as_ref() {
@@ -106,20 +108,20 @@ impl TryFrom<&EndpointSlice> for EndpointSliceEntry {
                     dns_endpoints.push(EndpointSliceEndpoint::Kubernetes {
                         name: name.to_owned(),
                         addresses: ep.addresses.iter().map(|a| a.parse().unwrap()).collect(),
-                    })
+                    });
                 } else {
                     dns_endpoints.push(EndpointSliceEndpoint::External {
                         addresses: ep.addresses.iter().map(|a| a.parse().unwrap()).collect(),
-                    })
+                    });
                 }
             }
-        });
+        }
 
         let mut dns_ports = HashMap::new();
 
-        eps.ports.as_ref().map(|ports| {
+        if let Some(ports) = eps.ports.as_ref() {
             for p in ports {
-                let default_p_name = "".to_string();
+                let default_p_name = String::new();
                 let p_name = p.name.as_ref().unwrap_or(&default_p_name);
                 let default_p_proto = "TCP".to_string();
                 let p_proto = p.protocol.as_ref().unwrap_or(&default_p_proto);
@@ -135,7 +137,7 @@ impl TryFrom<&EndpointSlice> for EndpointSliceEntry {
                     );
                 }
             }
-        });
+        }
 
         Ok(Self {
             endpoints: dns_endpoints,
@@ -163,6 +165,7 @@ impl KubernetesSvcContext {
         debug!("removed service {namespace}/{name}");
     }
 
+    #[must_use]
     pub fn get_svc(&self, namespace: &str, name: &str) -> Option<&ServiceEntry> {
         self.svc_entries.get(&format!("{namespace}/{name}"))
     }
@@ -186,6 +189,7 @@ impl KubernetesSvcContext {
         debug!("removed endpointslice for {namespace}/{eps_name}");
     }
 
+    #[must_use]
     pub fn get_epss(&self, namespace: &str, svc_name: &str) -> Vec<&EndpointSliceEntry> {
         self.eps_entries
             .iter()

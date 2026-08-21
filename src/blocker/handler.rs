@@ -17,6 +17,7 @@ pub struct BlockerZoneHandler {
 }
 
 impl BlockerZoneHandler {
+    #[must_use]
     pub fn new(domains: BlockListZoneHandlerDomains) -> Self {
         Self {
             origin: Name::root().into(),
