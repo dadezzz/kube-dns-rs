@@ -4,7 +4,7 @@
   "extends": [
     "config:best-practices",
     "customManagers:dockerfileVersions",
-    ":semanticCommits"
+    ":semanticCommits",
   ],
   "packageRules": [
     {
@@ -12,19 +12,19 @@
       "groupName": "CI dependencies",
       "groupSlug": "ci",
       "matchFileNames": [".devcontainer/**", ".forgejo/**"],
-      "matchUpdateTypes": ["!major"]
+      "matchUpdateTypes": ["!major"],
     },
     // Group also the CI image update in Dockerfile.
     {
       "automerge": true,
       "groupName": "CI dependencies",
       "groupSlug": "ci",
-      "matchPackageNames": ["git.zarantonello.dev/infra/ci-rust"]
-    }
+      "matchPackageNames": ["git.zarantonello.dev/infra/ci-rust"],
+    },
     {
       "automerge": true,
       "matchFileNames": ["Dockerfile"],
       "matchUpdateTypes": ["!major"],
     },
-  ]
+  ],
 }

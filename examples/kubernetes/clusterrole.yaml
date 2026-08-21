@@ -16,8 +16,8 @@ rules:
     verbs:
       - watch
   - apiGroups:
-    - zarantonello.dev
+      - zarantonello.dev
     resources:
-    - dnsrecords
+      - dnsrecords
     verbs:
-    - watch
+      - watch
