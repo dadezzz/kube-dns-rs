@@ -5,7 +5,7 @@ concurrency:
 jobs:
   build:
     container:
-      image: quay.io/containers/aio:latest@sha256:afb15f614f2ca1002f6e12e26ed9b40a6bc58785ea6940e259f6010927238da5
+      image: quay.io/containers/aio:latest@sha256:7b214bb677470177f99db8a2011406e48f3b4cc0a4c2bec4bd3eeb571991d1a8
     env:
       IMAGE: git.zarantonello.dev/${{ forge.repository }}:${{ forge.ref_name }}
     name: Build the container

@@ -35,15 +35,15 @@ spec:
             - containerPort: 1053
               name: dns-udp
               protocol: UDP
-          startupProbe:
-            tcpSocket:
-              port: 1053
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+          startupProbe:
+            tcpSocket:
+              port: 1053
           volumeMounts:
             - mountPath: /etc/kube-dns-rs/config.yaml
               name: config

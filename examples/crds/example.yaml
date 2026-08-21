@@ -4,7 +4,6 @@ metadata:
   name: example-com
   namespace: your-namespace
 spec:
-  fqdn: example.com
   data:
     - A:
         addresses:
@@ -12,3 +11,4 @@ spec:
     - AAAA:
         addresses:
           - 2001:db8::1
+  fqdn: example.com
