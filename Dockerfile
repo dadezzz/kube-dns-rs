@@ -1,4 +1,4 @@
-FROM git.zarantonello.dev/infra/ci-rust:v1.2.0
+FROM git.zarantonello.dev/infra/ci-rust:v1.2.0 AS builder
 
 WORKDIR /srv
 
