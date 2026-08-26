@@ -9,7 +9,7 @@ jobs:
     env:
       IMAGE: git.zarantonello.dev/${{ forge.repository }}:${{ forge.ref_name }}
     name: Build the container
-    runs-on: srv-home
+    runs-on: srv-generic
     steps:
       - name: Clone the repository
         run: |
@@ -20,9 +20,13 @@ jobs:
           sed -i 's|mountopt = "nodev,fsync=0"||' /etc/containers/storage.conf;
           sed -i 's|mount_program = "/usr/bin/fuse-overlayfs"||' /etc/containers/storage.conf;
       - name: Login to the container registry
-        run: podman login git.zarantonello.dev -u ${{ secrets.REGISTRY_USER }} -p ${{ secrets.REGISTRY_PASSWORD }}
+        run: podman login git.zarantonello.dev -u ci-bot -p ${{ secrets.CI_BOT_REGISTRY_TOKEN }}
       - name: Build the container image
-        run: podman build --tag ${{ env.IMAGE }} .
+        run: |
+          podman build \
+            --label org.opencontainers.image.source="https://git.zarantonello.dev/${{ forge.repository }}" \
+            --label org.opencontainers.image.revision="${{ forge.sha }}" \
+            --tag ${{ env.IMAGE }} .
       - name: Push the container image
         run: podman push ${{ env.IMAGE }}
 
@@ -31,4 +35,4 @@ name: build.yaml
 "on":
   push:
     tags:
-      - "*"
+      - v*

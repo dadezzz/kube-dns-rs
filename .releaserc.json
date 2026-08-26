@@ -1,4 +1,8 @@
 {
   "branches": ["main"],
-  "plugins": ["@semantic-release/commit-analyzer"]
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "forgejo-release"
+  ]
 }

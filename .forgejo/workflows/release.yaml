@@ -5,21 +5,22 @@ concurrency:
 jobs:
   release:
     container:
-      image: git.zarantonello.dev/infra/ci-semantic-release:latest@sha256:c426d61ca41e5d43b8329f3562421e0a02ee4c4cdb2870bd8666465308989541
-    name: Generate next relase tag
+      image: git.zarantonello.dev/infra/ci-semantic-release:v1.0.2@sha256:e04bd8d1ef225a118e6c79be72661d7d1162866833a1a0f73c2a13bc4c09cd00
+    name: Generate next release tag
     runs-on: srv-generic
     steps:
       - name: Clone the repository
         run: |
-          git clone --filter=blob:none --no-checkout https://${{ secrets.SEMANTIC_RELEASE_TOKEN }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git clone --filter=blob:none --no-checkout https://${{ secrets.CI_BOT_TOKEN }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
           git checkout --quiet ${{ forge.sha }};
       - env:
-          GIT_AUTHOR_EMAIL: semantic-release@zarantonello.dev
-          GIT_AUTHOR_NAME: Semantic Release [bot]
-          GIT_COMMITTER_EMAIL: semantic-release@zarantonello.dev
-          GIT_COMMITTER_NAME: Semantic Release [bot]
+          FORGEJO_API_TOKEN: ${{ secrets.CI_BOT_TOKEN }}
         name: Run semantic-release
-        run: semantic-release
+        run: |
+          git config --global user.name "CI [bot]"
+          git config --global user.email "ci-bot@git.zarantonello.dev"
+
+          semantic-release
 
 name: release.yaml
 

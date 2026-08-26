@@ -5,7 +5,7 @@ concurrency:
 jobs:
   check-prettier:
     container:
-      image: git.zarantonello.dev/infra/ci-prettier:latest@sha256:2a4a435bf81a315ed34cc20a60ed1b4f4658ee6f7ddd0f77d17136adacbf3360
+      image: git.zarantonello.dev/infra/ci-prettier:v1.0.0@sha256:963f6964a632c25b7d12e33c56aa1aa6ff0f8b7392348b879f58b3aa4f58825e
     name: Check files formatting
     runs-on: srv-generic
     steps:

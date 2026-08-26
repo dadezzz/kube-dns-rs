@@ -50,48 +50,49 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
+        let lock = self.context.read().await;
+        let target = lock.get_entry(query_name);
+
         let record_set = match query_type {
-            RecordType::A => {
-                let lock = self.context.read().await;
-
-                lock.get_entry(query_name).and_then(|data| {
-                    utils::new_a_record_set(
-                        query_name,
-                        data.iter()
-                            .filter_map(|d| match d {
-                                DnsRecordData::A { addresses } => Some(addresses),
-                                _ => None,
-                            })
-                            .flatten()
-                            .map(|ip| ip.to_owned()),
-                        TTL,
-                    )
-                })
-            }
-            RecordType::AAAA => {
-                let lock = self.context.read().await;
-
-                lock.get_entry(query_name).and_then(|data| {
-                    utils::new_aaaa_record_set(
-                        query_name,
-                        data.iter()
-                            .filter_map(|d| match d {
-                                DnsRecordData::AAAA { addresses } => Some(addresses),
-                                _ => None,
-                            })
-                            .flatten()
-                            .map(|ip| ip.to_owned()),
-                        TTL,
-                    )
-                })
-            }
+            RecordType::A => target.and_then(|data| {
+                utils::new_a_record_set(
+                    query_name,
+                    data.iter()
+                        .filter_map(|d| match d {
+                            DnsRecordData::A { addresses } => Some(addresses),
+                            _ => None,
+                        })
+                        .flatten()
+                        .map(|ip| ip.to_owned()),
+                    TTL,
+                )
+            }),
+            RecordType::AAAA => target.and_then(|data| {
+                utils::new_aaaa_record_set(
+                    query_name,
+                    data.iter()
+                        .filter_map(|d| match d {
+                            DnsRecordData::AAAA { addresses } => Some(addresses),
+                            _ => None,
+                        })
+                        .flatten()
+                        .map(|ip| ip.to_owned()),
+                    TTL,
+                )
+            }),
             _ => None,
         };
 
         if let Some(rs) = record_set {
             utils::continue_with_recordset(lookup_options, rs, None)
         } else {
-            LookupControlFlow::Skip
+            if target.is_some() {
+                // CRD entry present but not for record type.
+                LookupControlFlow::Break(Ok(AuthLookup::Empty))
+            } else {
+                // No CRD entry for hostname.
+                LookupControlFlow::Skip
+            }
         }
     }
 
