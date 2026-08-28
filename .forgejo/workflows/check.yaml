@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Clone the repository
         run: |
-          git clone --filter=blob:none --no-checkout https://${{ secrets.SEMANTIC_RELEASE_TOKEN }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git clone --filter=blob:none --no-checkout https://${{ forge.token }}@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
           git checkout --quiet ${{ forge.sha }};
       - name: Run linter
         run: cargo clippy

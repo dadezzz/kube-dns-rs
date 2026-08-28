@@ -4,16 +4,17 @@ use clap::Parser;
 use hickory_server::{proto::rr::Name, zone_handler::Catalog};
 use kube_dns_rs::{
     args::Args,
+    blocker::refresher::BlockerListRefresher,
     kubernetes::svc::{
         context::KubernetesSvcContext, handler::KubernetesSvcZoneHandler,
         watcher::KubernetesSvcWatcher,
     },
 };
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
 
 use kube_dns_rs::{
-    blocker::{domains::BlockListZoneHandlerDomains, handler::BlockerZoneHandler},
+    blocker::{context::BlockerContext, handler::BlockerZoneHandler},
     forwarder::ForwardZoneHandlerWrapper,
     init,
     kubernetes::crd::{
@@ -34,29 +35,30 @@ async fn main() -> Result<(), init::Error> {
 
     let mut catalog = Catalog::new();
 
-    let mut blocker_domains = BlockListZoneHandlerDomains::new();
+    let blocker_context: Arc<RwLock<BlockerContext>> = Arc::default();
+    let mut blocker_refresher = BlockerListRefresher::new(blocker_context.clone());
 
     for bu in settings.blocker.blocklist_urls {
-        blocker_domains.add_block_list(bu.as_str()).await;
+        blocker_refresher.add_block_list(bu.as_str()).await.unwrap();
     }
 
     for au in settings.blocker.allowlist_urls {
-        blocker_domains.add_allow_list(au.as_str()).await;
+        blocker_refresher.add_allow_list(au.as_str()).await.unwrap();
     }
 
-    let blocker = BlockerZoneHandler::new(blocker_domains);
-    let forwarder = ForwardZoneHandlerWrapper::new();
+    let blocker_handler = BlockerZoneHandler::new(blocker_context);
+    let forwarder_handler = ForwardZoneHandlerWrapper::new();
 
     let k8s_crd_ctx: Arc<RwLock<KubernetesCrdContext>> = Arc::default();
-    let k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client.clone(), k8s_crd_ctx.clone());
+    let mut k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client.clone(), k8s_crd_ctx.clone());
     let k8s_crd_handler = KubernetesCrdZoneHandler::new(k8s_crd_ctx);
 
     catalog.upsert(
         Name::root().into(),
         vec![
             Arc::new(k8s_crd_handler),
-            Arc::new(blocker),
-            Arc::new(forwarder),
+            Arc::new(blocker_handler),
+            Arc::new(forwarder_handler),
         ],
     );
 
@@ -64,7 +66,7 @@ async fn main() -> Result<(), init::Error> {
     fq_cluster_domain.set_fqdn(true);
 
     let k8s_svc_ctx: Arc<RwLock<KubernetesSvcContext>> = Arc::default();
-    let k8s_svc_watcher = KubernetesSvcWatcher::new(k8s_client, k8s_svc_ctx.clone());
+    let mut k8s_svc_watcher = KubernetesSvcWatcher::new(k8s_client, k8s_svc_ctx.clone());
     let k8s_svc_handler = KubernetesSvcZoneHandler::new(fq_cluster_domain.clone(), k8s_svc_ctx);
 
     catalog.upsert(fq_cluster_domain, vec![Arc::new(k8s_svc_handler)]);
@@ -76,14 +78,14 @@ async fn main() -> Result<(), init::Error> {
     server.register_listener(tcp, Duration::from_secs(10), 32);
 
     tokio::select! {
-        () = k8s_crd_watcher.run() => (),
-        () = k8s_svc_watcher.run() => (),
-        _ = server.block_until_done() => (),
-        _ = tokio::signal::ctrl_c() => {
-            println!("shutting down...");
-            server.shutdown_gracefully().await.unwrap();
-        }
+        _ = blocker_refresher.run() =>(),
+        _ = k8s_crd_watcher.run() => (),
+        _ = k8s_svc_watcher.run() => (),
+        _ = tokio::signal::ctrl_c() => ()
     };
+
+    warn!("shutting down");
+    server.shutdown_gracefully().await.unwrap();
 
     Ok(())
 }

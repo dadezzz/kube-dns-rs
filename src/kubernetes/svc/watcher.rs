@@ -3,13 +3,21 @@ use std::sync::Arc;
 use futures::StreamExt;
 use k8s_openapi::api::{core::v1::Service, discovery::v1::EndpointSlice};
 use kube::{Api, Client, runtime::watcher};
-use tokio::{join, sync::RwLock, task::JoinHandle};
+use tokio::{
+    sync::RwLock,
+    task::{JoinError, JoinSet},
+};
 
 use super::context::{EndpointSliceEntry, KubernetesSvcContext, ServiceEntry};
 
+#[derive(thiserror::Error, Debug)]
+pub enum KubernetesSvcWatcherError {
+    #[error("failed to join task: {0}")]
+    TaskJoin(JoinError),
+}
+
 pub struct KubernetesSvcWatcher {
-    svc_task: JoinHandle<()>,
-    eps_task: JoinHandle<()>,
+    tasks: JoinSet<()>,
 }
 
 impl KubernetesSvcWatcher {
@@ -19,7 +27,9 @@ impl KubernetesSvcWatcher {
         let eps_api: Api<EndpointSlice> = Api::all(client);
         let eps_ctx = ctx;
 
-        let svc_task = tokio::spawn(async move {
+        let mut tasks = JoinSet::new();
+
+        tasks.spawn(async move {
             watcher(svc_api, watcher::Config::default())
                 .for_each(async |event| match event.unwrap() {
                     watcher::Event::InitApply(svc) | watcher::Event::Apply(svc) => {
@@ -40,7 +50,7 @@ impl KubernetesSvcWatcher {
                 .await;
         });
 
-        let eps_task = tokio::spawn(async move {
+        tasks.spawn(async move {
             watcher(eps_api, watcher::Config::default())
                 .for_each(async |event| match event.unwrap() {
                     watcher::Event::InitApply(eps) | watcher::Event::Apply(eps) => {
@@ -63,13 +73,30 @@ impl KubernetesSvcWatcher {
                 .await;
         });
 
-        Self { svc_task, eps_task }
+        Self { tasks }
     }
 
-    pub async fn run(self) {
-        let (r1, r2) = join!(self.svc_task, self.eps_task);
-        r1.unwrap();
-        r2.unwrap();
+    pub async fn run(&mut self) -> Result<(), KubernetesSvcWatcherError> {
+        if self.tasks.is_empty() {
+            // Handle case where there are no lists. The server needs to keep
+            // running.
+            self.tasks.spawn(std::future::pending());
+        }
+
+        while let Some(res) = self.tasks.join_next().await {
+            match res {
+                Ok(()) => continue,
+                Err(e) => return Err(KubernetesSvcWatcherError::TaskJoin(e)),
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for KubernetesSvcWatcher {
+    fn drop(&mut self) {
+        self.tasks.abort_all();
     }
 }
 

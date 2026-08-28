@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::future::join_all;
 use hickory_server::{
     proto::rr::{LowerName, Name, RecordType, TSigResponseContext},
@@ -6,22 +8,23 @@ use hickory_server::{
         AuthLookup, AxfrPolicy, LookupControlFlow, LookupOptions, ZoneHandler, ZoneType,
     },
 };
+use tokio::sync::RwLock;
 use tracing::info;
 
-use super::domains::BlockListZoneHandlerDomains;
+use super::context::{BlockerContext, BlockerDomainStatus};
 use crate::utils;
 
 pub struct BlockerZoneHandler {
     origin: LowerName,
-    domains: BlockListZoneHandlerDomains,
+    context: Arc<RwLock<BlockerContext>>,
 }
 
 impl BlockerZoneHandler {
     #[must_use]
-    pub fn new(domains: BlockListZoneHandlerDomains) -> Self {
+    pub fn new(context: Arc<RwLock<BlockerContext>>) -> Self {
         Self {
             origin: Name::root().into(),
-            domains,
+            context,
         }
     }
 }
@@ -47,14 +50,16 @@ impl ZoneHandler for BlockerZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         _lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
-        let (lists, result) = self.domains.status_of(query_name);
+        let lookup = self.context.read().await.status_of(query_name);
 
-        if result != crate::blocker::domains::Status::Allowed {
-            info!(
-                "query {} for {} blocked by {:?}",
-                query_type, query_name, lists
-            );
-            return utils::break_with_nxdomain();
+        if let Some((urls, name, result)) = lookup {
+            if result != BlockerDomainStatus::Allowed {
+                info!(
+                    "query {} for {} blocked ({}) by {:?}",
+                    query_type, query_name, name, urls
+                );
+                return utils::break_with_nxdomain();
+            }
         }
 
         return LookupControlFlow::Skip;
