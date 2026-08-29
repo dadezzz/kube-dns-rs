@@ -6,15 +6,15 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::{trie::Trie, utils};
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum BlockerDomainStatus {
-    Blocked,
-    Allowed,
+pub enum ListType {
+    Block,
+    Allow,
 }
 
 #[derive(Default)]
 pub struct BlockerContext {
     // Key is url of list.
-    tries: HashMap<String, Trie<BlockerDomainStatus>>,
+    tries: HashMap<String, Trie<ListType>>,
 }
 
 impl BlockerContext {
@@ -26,7 +26,7 @@ impl BlockerContext {
     }
 
     // Replaces the old list if re-inserted.
-    pub fn insert_list<'a, I>(&mut self, url: &str, list: I, status: BlockerDomainStatus)
+    pub fn insert_list<'a, I>(&mut self, url: &str, list: I, list_type: ListType)
     where
         I: IntoIterator<Item = &'a Name>,
     {
@@ -34,19 +34,19 @@ impl BlockerContext {
 
         list.into_iter()
             .map(utils::name_to_labels)
-            .for_each(|labels| trie.insert(labels, status));
+            .for_each(|labels| trie.insert(labels, list_type));
 
         self.tries.entry(url.to_owned()).insert_entry(trie);
     }
 
     #[must_use]
-    pub fn status_of(&self, name: &Name) -> Option<(Vec<String>, Name, BlockerDomainStatus)> {
+    pub fn lookup(&self, name: &Name) -> Option<(Vec<String>, Name, ListType)> {
         let path = utils::name_to_labels(name);
 
-        type Identity = (Vec<String>, Name, Option<BlockerDomainStatus>);
+        type Identity = (Vec<String>, Name, Option<ListType>);
         let identity: Identity = (Vec::new(), Name::root(), None);
 
-        let (urls, path, status): Identity = self
+        let (urls, path, list_type): Identity = self
             .tries
             .par_iter()
             .map(|(url, trie)| {
@@ -71,24 +71,10 @@ impl BlockerContext {
                     // Give max priority to allow lists, then blocklists.
                     match (acc_a.2, acc_b.2) {
                         (None, None) => acc_a, // Just re-use one of the 2, don't care which.
-                        (None, Some(_))
-                        | (
-                            Some(BlockerDomainStatus::Blocked),
-                            Some(BlockerDomainStatus::Allowed),
-                        ) => acc_b,
-                        (Some(_), None)
-                        | (
-                            Some(BlockerDomainStatus::Allowed),
-                            Some(BlockerDomainStatus::Blocked),
-                        ) => acc_a,
-                        (
-                            Some(BlockerDomainStatus::Allowed),
-                            Some(BlockerDomainStatus::Allowed),
-                        )
-                        | (
-                            Some(BlockerDomainStatus::Blocked),
-                            Some(BlockerDomainStatus::Blocked),
-                        ) => {
+                        (None, Some(_)) | (Some(ListType::Block), Some(ListType::Allow)) => acc_b,
+                        (Some(_), None) | (Some(ListType::Allow), Some(ListType::Block)) => acc_a,
+                        (Some(ListType::Allow), Some(ListType::Allow))
+                        | (Some(ListType::Block), Some(ListType::Block)) => {
                             acc_a.0.extend(acc_b.0);
                             acc_a
                         }
@@ -96,10 +82,6 @@ impl BlockerContext {
                 },
             );
 
-        if let Some(status) = status {
-            Some((urls, path, status))
-        } else {
-            None
-        }
+        list_type.map(|list_type| (urls, path, list_type))
     }
 }

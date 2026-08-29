@@ -4,7 +4,7 @@ use clap::Parser;
 use hickory_server::{proto::rr::Name, zone_handler::Catalog};
 use kube_dns_rs::{
     args::Args,
-    blocker::refresher::BlockerListRefresher,
+    blocker::refresher::BlockerRefresher,
     kubernetes::svc::{
         context::KubernetesSvcContext, handler::KubernetesSvcZoneHandler,
         watcher::KubernetesSvcWatcher,
@@ -36,14 +36,20 @@ async fn main() -> Result<(), init::Error> {
     let mut catalog = Catalog::new();
 
     let blocker_context: Arc<RwLock<BlockerContext>> = Arc::default();
-    let mut blocker_refresher = BlockerListRefresher::new(blocker_context.clone());
+    let mut blocker_refresher = BlockerRefresher::new(blocker_context.clone());
 
-    for bu in settings.blocker.blocklist_urls {
-        blocker_refresher.add_block_list(bu.as_str()).await.unwrap();
+    for block_list_url in settings.blocker.blocklist_urls {
+        blocker_refresher
+            .add_block_list(block_list_url.as_str())
+            .await
+            .map_err(init::Error::DownloadList)?;
     }
 
-    for au in settings.blocker.allowlist_urls {
-        blocker_refresher.add_allow_list(au.as_str()).await.unwrap();
+    for allow_list_url in settings.blocker.allowlist_urls {
+        blocker_refresher
+            .add_allow_list(allow_list_url.as_str())
+            .await
+            .map_err(init::Error::DownloadList)?;
     }
 
     let blocker_handler = BlockerZoneHandler::new(blocker_context);

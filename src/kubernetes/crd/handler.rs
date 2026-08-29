@@ -63,7 +63,7 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
                             _ => None,
                         })
                         .flatten()
-                        .map(|ip| ip.to_owned()),
+                        .copied(),
                     TTL,
                 )
             }),
@@ -76,7 +76,7 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
                             _ => None,
                         })
                         .flatten()
-                        .map(|ip| ip.to_owned()),
+                        .copied(),
                     TTL,
                 )
             }),
@@ -85,14 +85,12 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
 
         if let Some(rs) = record_set {
             utils::continue_with_recordset(lookup_options, rs, None)
+        } else if target.is_some() {
+            // CRD entry present but not for record type.
+            LookupControlFlow::Break(Ok(AuthLookup::Empty))
         } else {
-            if target.is_some() {
-                // CRD entry present but not for record type.
-                LookupControlFlow::Break(Ok(AuthLookup::Empty))
-            } else {
-                // No CRD entry for hostname.
-                LookupControlFlow::Skip
-            }
+            // No CRD entry for hostname.
+            LookupControlFlow::Skip
         }
     }
 

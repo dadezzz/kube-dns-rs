@@ -85,7 +85,7 @@ impl KubernetesSvcWatcher {
 
         while let Some(res) = self.tasks.join_next().await {
             match res {
-                Ok(()) => continue,
+                Ok(()) => {}
                 Err(e) => return Err(KubernetesSvcWatcherError::TaskJoin(e)),
             }
         }

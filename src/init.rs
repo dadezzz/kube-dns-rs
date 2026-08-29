@@ -4,18 +4,20 @@ use kube::Client;
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::info;
 
-use crate::settings::Settings;
+use crate::{blocker, settings::Settings};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to load settings: {_0}")]
+    #[error("failed to load settings: {0}")]
     LoadSettings(config::ConfigError),
-    #[error("failed to bind UDP listener: {_0}")]
+    #[error("failed to bind UDP listener: {0}")]
     BindUDP(std::io::Error),
-    #[error("failed to bind TCP listener: {_0}")]
+    #[error("failed to bind TCP listener: {0}")]
     BindTCP(std::io::Error),
-    #[error("failed to start kubernetes client: {_0}")]
+    #[error("failed to start kubernetes client: {0}")]
     LoadKubernetes(kube::Error),
+    #[error("failed to fetch domain list: {0}")]
+    DownloadList(blocker::refresher::Error),
 }
 
 pub fn start_logger() {

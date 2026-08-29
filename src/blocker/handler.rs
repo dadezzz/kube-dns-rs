@@ -11,7 +11,7 @@ use hickory_server::{
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::context::{BlockerContext, BlockerDomainStatus};
+use super::context::{BlockerContext, ListType};
 use crate::utils;
 
 pub struct BlockerZoneHandler {
@@ -50,16 +50,16 @@ impl ZoneHandler for BlockerZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         _lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
-        let lookup = self.context.read().await.status_of(query_name);
+        let lookup = self.context.read().await.lookup(query_name);
 
-        if let Some((urls, name, result)) = lookup {
-            if result != BlockerDomainStatus::Allowed {
-                info!(
-                    "query {} for {} blocked ({}) by {:?}",
-                    query_type, query_name, name, urls
-                );
-                return utils::break_with_nxdomain();
-            }
+        if let Some((urls, name, list_type)) = lookup
+            && list_type == ListType::Block
+        {
+            info!(
+                "query {} for {} blocked ({}) by {:?}",
+                query_type, query_name, name, urls
+            );
+            return utils::break_with_nxdomain();
         }
 
         return LookupControlFlow::Skip;
