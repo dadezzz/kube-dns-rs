@@ -9,13 +9,13 @@ use kube_dns_rs::{
         context::KubernetesSvcContext, handler::KubernetesSvcZoneHandler,
         watcher::KubernetesSvcWatcher,
     },
+    resolver::ResolverZoneHandler,
 };
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use kube_dns_rs::{
     blocker::{context::BlockerContext, handler::BlockerZoneHandler},
-    forwarder::ForwardZoneHandlerWrapper,
     init,
     kubernetes::crd::{
         context::KubernetesCrdContext, handler::KubernetesCrdZoneHandler,
@@ -53,7 +53,7 @@ async fn main() -> Result<(), init::Error> {
     }
 
     let blocker_handler = BlockerZoneHandler::new(blocker_context);
-    let forwarder_handler = ForwardZoneHandlerWrapper::new();
+    let resolver_handler = ResolverZoneHandler::new();
 
     let k8s_crd_ctx: Arc<RwLock<KubernetesCrdContext>> = Arc::default();
     let mut k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client.clone(), k8s_crd_ctx.clone());
@@ -64,7 +64,7 @@ async fn main() -> Result<(), init::Error> {
         vec![
             Arc::new(k8s_crd_handler),
             Arc::new(blocker_handler),
-            Arc::new(forwarder_handler),
+            Arc::new(resolver_handler),
         ],
     );
 
