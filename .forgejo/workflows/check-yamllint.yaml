@@ -5,7 +5,7 @@ concurrency:
 jobs:
   check-yamllint:
     container:
-      image: git.zarantonello.dev/infra/ci-yamllint:v1.0.0@sha256:fdcd6bdd4dc6d7d1f6d2cfad1210810c65a4b2932de40d73fed3347de0299f74
+      image: git.zarantonello.dev/infra/ci-yamllint:v1.0.1@sha256:e92894d7c5a48544d463854c39b5fd98ba085aa555796d91cf2a5da2a01ebf67
     name: Lint yaml files
     runs-on: srv-generic
     steps:
