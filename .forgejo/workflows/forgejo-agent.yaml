@@ -13,8 +13,19 @@ jobs:
     steps:
       - name: Configure pi
         run: |
-          mkdir -p $HOME/.pi/agent/
-          echo '{"providers":{"llama-server":{"baseUrl":"http://llama.zarantonello.dev/v1","api":"openai-completions","apiKey":"llama","models":[{"id":"Qwen3.6-35B-A3B","contextWindow":65536}]}}}' > $HOME/.pi/agent/models.json
+          mkdir -p ~/.pi/agent/
+
+          cat << 'EOF' > ~/.pi/agent/auth.json
+          ${{ secrets.PI_AUTH_JSON }}
+          EOF
+
+          cat << 'EOF' > ~/.pi/agent/models.json
+          ${{ vars.PI_MODELS_JSON }}
+          EOF
+
+          cat << 'EOF' > ~/.pi/agent/settings.json
+          ${{ vars.PI_SETTINGS_JSON }}
+          EOF
       - name: Generate response
         uses: https://git.zarantonello.dev/projects/forgejo-agent@c7a8ee2a366ce0817c2d222576de8449588e8b8a # v1.9.10
         with:
