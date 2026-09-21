@@ -49,8 +49,12 @@ pub fn handler_search_aggregator(
                     _ => {}
                 }
             }
+            LookupControlFlow::Continue(Err(e)) | LookupControlFlow::Break(Err(e)) => {
+                tracing::warn!("resolving query: {:?}", e);
+                return LookupControlFlow::Break(Err(e));
+            }
             LookupControlFlow::Skip => {}
-            err_or_break => return err_or_break,
+            break_ok => return break_ok,
         }
     }
 
