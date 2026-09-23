@@ -6,7 +6,7 @@ concurrency:
 jobs:
   release:
     container:
-      image: git.zarantonello.dev/infra/ci-semantic-release:v1.0.6@sha256:146708c501d3e06c7c0d429af640b9d4dbceffa14a533a0ae369b753ff482a64
+      image: git.zarantonello.dev/infra/ci-semantic-release:v1.0.7@sha256:64f4e4707094c13c19f824f285628dbcf692b16c90168303e185ed26ba13944d
     name: Generate next release tag
     runs-on: srv-generic
     steps:
