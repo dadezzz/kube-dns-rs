@@ -1,7 +1,7 @@
 services:
   workspace:
     entrypoint: sleep infinity
-    image: git.zarantonello.dev/infra/ci-rust:v1.2.6@sha256:790e5396ad6ad2acd5bbe531bc3b719471820e7e74c65374418b8af411028614
+    image: git.zarantonello.dev/infra/ci-rust:v1.2.7@sha256:08b32511b6683c06812314b2ad4921e3756b3bc37a5c28d6ec437dde72eff431
     ports:
       - 1053:1053/tcp
       - 1053:1053/udp
