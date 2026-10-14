@@ -167,7 +167,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
                 ));
 
                 let mut rs =
-                    RecordSet::new(self.cluster_domain.clone().into(), RecordType::SOA, TTL);
+                    RecordSet::with_ttl(self.cluster_domain.clone().into(), RecordType::SOA, TTL);
                 rs.add_rdata(soa_rdata);
 
                 record_set = Some(rs);
