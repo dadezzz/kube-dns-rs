@@ -3,6 +3,7 @@ use std::{collections::HashMap, net::IpAddr};
 use k8s_openapi::api::{core::v1::Service, discovery::v1::EndpointSlice};
 use tracing::debug;
 
+#[derive(Debug)]
 pub enum ServiceEntry {
     ClusterIpService { addresses: Vec<IpAddr> },
     HeadlessService,
@@ -47,11 +48,13 @@ pub enum ContextError {
     InvalidEndpointSliceAddressType(String),
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct EndpointSlicePortKey {
     name: String,
     protocol: String,
 }
+
+#[derive(Debug)]
 
 pub enum EndpointSliceEndpoint {
     Kubernetes {
@@ -72,6 +75,8 @@ impl EndpointSliceEndpoint {
         }
     }
 }
+
+#[derive(Debug)]
 
 pub struct EndpointSliceEntry {
     pub endpoints: Vec<EndpointSliceEndpoint>,

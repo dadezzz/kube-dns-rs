@@ -51,16 +51,15 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
-        let mut labels = utils::name_to_labels(query_name);
+        let labels = utils::name_to_labels(query_name);
+
         // Remove the cluster domain part to use exact matches on the match block.
-        for _ in 0..self.origin().num_labels() {
-            labels.pop();
-        }
+        let (_, labels) = labels.split_at(self.origin().num_labels().into());
 
         let lock = self.context.read().await;
 
-        let targets: Vec<&Vec<IpAddr>> = match labels.as_slice() {
-            [k8s_name, svc_name, svc_ns, "svc"] => {
+        let targets: Vec<&Vec<IpAddr>> = match labels {
+            ["svc", svc_ns, svc_name, k8s_name] => {
                 let endpointslices = lock.get_epss(svc_ns, svc_name);
 
                 endpointslices
@@ -88,7 +87,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
             //     // return all ports
             //     // or endpoint slice ports if clusterip none
             // }
-            [svc_name, svc_ns, "svc"] => {
+            ["svc", svc_ns, svc_name] => {
                 let service = lock.get_svc(svc_ns, svc_name);
 
                 match service {
