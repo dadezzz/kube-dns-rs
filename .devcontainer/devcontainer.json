@@ -1,5 +1,10 @@
 {
   "dockerComposeFile": "docker-compose.yaml",
   "service": "workspace",
-  "workspaceFolder": "/workspace"
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": ["rust-lang.rust-analyzer"]
+    }
+  }
 }

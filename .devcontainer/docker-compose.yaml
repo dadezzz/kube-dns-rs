@@ -7,6 +7,7 @@ services:
       - 1053:1053/udp
     volumes:
       - ..:/workspace:z,cached
+      - $HOME/.kube:/root/.kube:z,ro
       - cargo-cache:/usr/local/cargo/registry
     working_dir: /workspace
 

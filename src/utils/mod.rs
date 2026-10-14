@@ -6,7 +6,7 @@ use std::{
 use hickory_server::{
     proto::{
         op::ResponseCode,
-        rr::{self, Name, RecordSet, RecordType},
+        rr::{self, Name, RecordSet, RecordType, domain::IntoLabel},
     },
     zone_handler::{AuthLookup, LookupControlFlow, LookupError, LookupOptions, LookupRecords},
 };
@@ -137,5 +137,18 @@ pub fn continue_with_recordset(
 
 #[must_use]
 pub fn name_to_labels(name: &Name) -> Vec<&str> {
-    name.iter().map(|l| str::from_utf8(l).unwrap()).collect()
+    name.iter()
+        .map(|l| str::from_utf8(l).unwrap())
+        .rev()
+        .collect()
+}
+
+#[must_use]
+pub fn name_from_labels<I, D, L>(labels: I) -> Name
+where
+    I: IntoIterator<IntoIter = D>,
+    D: DoubleEndedIterator<Item = L>,
+    L: IntoLabel,
+{
+    Name::from_labels(labels.into_iter().rev()).unwrap()
 }

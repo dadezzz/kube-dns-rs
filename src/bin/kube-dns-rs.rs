@@ -12,7 +12,6 @@ use kube_dns_rs::{
     resolver::ResolverZoneHandler,
 };
 use tokio::sync::RwLock;
-use tracing::{info, warn};
 
 use kube_dns_rs::{
     blocker::{context::BlockerContext, handler::BlockerZoneHandler},
@@ -29,8 +28,6 @@ async fn main() -> Result<(), init::Error> {
     let args = Args::parse();
 
     let settings = init::load_settings(&args.config)?;
-    info!("loaded config from {}", args.config);
-
     let k8s_client = init::load_kubernetes().await?;
 
     let mut catalog = Catalog::new();
@@ -90,7 +87,7 @@ async fn main() -> Result<(), init::Error> {
         _ = tokio::signal::ctrl_c() => ()
     };
 
-    warn!("shutting down");
+    tracing::warn!("shutting down");
     server.shutdown_gracefully().await.unwrap();
 
     Ok(())

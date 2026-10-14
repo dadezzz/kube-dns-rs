@@ -22,6 +22,8 @@ jobs:
         run: cargo clippy
       - name: Run types and syntax check
         run: cargo check
+      - name: Run tests
+        run: cargo test
 
 name: check.yaml
 

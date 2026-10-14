@@ -1,10 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
+#[derive(Debug)]
 struct TrieNode<V: Clone> {
     value: Option<V>,
     children: HashMap<String, Self>,
 }
 
+#[derive(Debug)]
 pub struct Trie<V: Clone> {
     root: TrieNode<V>,
 }
@@ -68,29 +70,64 @@ impl<V: Clone> Trie<V> {
         node.value.as_ref()
     }
 
-    pub fn find_closest_prefix<I, S>(&self, path: I) -> (Vec<String>, Option<&V>)
+    pub fn find_closest_prefix<I, S>(&self, path: I) -> (Vec<&str>, Option<&V>)
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str> + ToString,
+        S: AsRef<str>,
     {
-        let mut node_path = Vec::new();
-        let mut node = &self.root;
+        let mut matched_path = Vec::new();
+        let mut matched_node = &self.root;
 
         for key in path {
-            if let Some(child) = node.children.get(key.as_ref()) {
-                node_path.push(key.to_string());
-                node = child;
+            if let Some((key, child)) = matched_node.children.get_key_value(key.as_ref()) {
+                matched_path.push(key.as_str());
+                matched_node = child;
             } else {
                 break;
             }
         }
 
-        (node_path, node.value.as_ref())
+        (matched_path, matched_node.value.as_ref())
     }
 }
 
 impl<V: Clone> Default for Trie<V> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Trie;
+
+    fn create_trie() -> Trie<bool> {
+        let mut trie = Trie::<bool>::new();
+        trie.insert(["a", "b"], true);
+        return trie;
+    }
+
+    #[test]
+    fn doesnt_match_parent_domain() {
+        let trie = create_trie();
+        let (matched_path, value) = trie.find_closest_prefix(["a"]);
+        assert_eq!(matched_path, ["a"]);
+        assert_eq!(value, None);
+    }
+
+    #[test]
+    fn matches_exact_domain() {
+        let trie = create_trie();
+        let (matched_path, value) = trie.find_closest_prefix(["a", "b"]);
+        assert_eq!(matched_path, ["a", "b"]);
+        assert_eq!(value, Some(&true));
+    }
+
+    #[test]
+    fn matches_wildcard_subdomain() {
+        let trie = create_trie();
+        let (matched_path, value) = trie.find_closest_prefix(["a", "b", "c"]);
+        assert_eq!(matched_path, ["a", "b"]);
+        assert_eq!(value, Some(&true));
     }
 }

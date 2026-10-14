@@ -5,7 +5,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{trie::Trie, utils};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ListType {
     Block,
     Allow,
@@ -53,7 +53,7 @@ impl BlockerContext {
                 let (path, status) = trie.find_closest_prefix(path.clone());
                 (
                     vec![url.to_owned()],
-                    Name::from_labels(path).unwrap(),
+                    utils::name_from_labels(path),
                     status.copied(),
                 )
             })
