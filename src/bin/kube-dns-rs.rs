@@ -95,6 +95,6 @@ async fn run() -> Result<(), init::Error> {
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
-        tracing::error!("{e}")
+        tracing::error!("{e}");
     }
 }

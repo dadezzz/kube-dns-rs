@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use hickory_server::proto::rr::Name;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -11,18 +9,21 @@ pub enum ListType {
     Allow,
 }
 
+pub struct ListEntry {
+    url: String,
+    trie: Trie<()>,
+    list_type: ListType,
+}
+
 #[derive(Default)]
 pub struct BlockerContext {
-    // Key is url of list.
-    tries: HashMap<String, Trie<ListType>>,
+    lists: Vec<ListEntry>,
 }
 
 impl BlockerContext {
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            tries: HashMap::new(),
-        }
+        Self { lists: Vec::new() }
     }
 
     // Replaces the old list if re-inserted.
@@ -34,9 +35,13 @@ impl BlockerContext {
 
         list.into_iter()
             .map(utils::name_to_path)
-            .for_each(|labels| trie.insert(&labels, list_type));
+            .for_each(|labels| trie.insert(&labels, ()));
 
-        self.tries.entry(url.to_owned()).insert_entry(trie);
+        self.lists.push(ListEntry {
+            url: url.to_owned(),
+            trie,
+            list_type,
+        });
     }
 
     #[must_use]
@@ -47,14 +52,14 @@ impl BlockerContext {
         let path = utils::name_to_path(name);
 
         let (urls, path, list_type): Identity = self
-            .tries
+            .lists
             .par_iter()
-            .map(|(url, trie)| {
-                let (path, status) = trie.find_closest_prefix(&path);
+            .map(|list| {
+                let (path, status) = list.trie.find_closest_prefix(&path);
                 (
-                    vec![url.as_str()],
+                    vec![list.url.as_str()],
                     utils::name_from_path(path),
-                    status.copied(),
+                    status.map(|()| list.list_type),
                 )
             })
             .reduce(

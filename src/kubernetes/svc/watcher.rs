@@ -32,7 +32,7 @@ impl KubernetesSvcWatcher {
         tasks.spawn(async move {
             watcher(svc_api, watcher::Config::default())
                 .for_each(async |event| match event {
-                    Ok(watcher::Event::InitApply(svc)) | Ok(watcher::Event::Apply(svc)) => {
+                    Ok(watcher::Event::InitApply(svc) | watcher::Event::Apply(svc)) => {
                         svc_ctx.write().await.add_svc(
                             svc.metadata.namespace.as_ref().unwrap(),
                             svc.metadata.name.as_ref().unwrap(),

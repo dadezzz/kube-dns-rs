@@ -29,7 +29,7 @@ impl KubernetesCrdWatcher {
         tasks.spawn(async move {
             watcher(api, watcher::Config::default())
                 .for_each(async |event| match event {
-                    Ok(watcher::Event::InitApply(cr)) | Ok(watcher::Event::Apply(cr)) => {
+                    Ok(watcher::Event::InitApply(cr) | watcher::Event::Apply(cr)) => {
                         ctx.write().await.add_entry(
                             cr.metadata.namespace.as_ref().unwrap(),
                             cr.metadata.name.as_ref().unwrap(),
