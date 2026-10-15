@@ -50,7 +50,8 @@ impl ZoneHandler for BlockerZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         _lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
-        let lookup = self.context.read().await.lookup(query_name);
+        let context = self.context.read().await;
+        let lookup = context.lookup(query_name);
 
         if let Some((urls, name, list_type)) = lookup
             && list_type == ListType::Block

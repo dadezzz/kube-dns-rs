@@ -36,7 +36,7 @@ impl KubernetesCrdContext {
 
         for record in self.by_k8s_ref.values() {
             let name = Name::from_utf8(&record.spec.fqdn).unwrap();
-            let labels = utils::name_to_labels(&name);
+            let labels = utils::name_to_path(&name);
             let data = record.spec.data.clone();
 
             if let Some(datas) = self.by_labels.get_mut(&labels) {
@@ -49,7 +49,7 @@ impl KubernetesCrdContext {
 
     #[must_use]
     pub fn get_entry(&self, name: &Name) -> Option<&Vec<DnsRecordData>> {
-        let labels = utils::name_to_labels(name);
-        self.by_labels.get(labels)
+        let labels = utils::name_to_path(name);
+        self.by_labels.get(&labels)
     }
 }

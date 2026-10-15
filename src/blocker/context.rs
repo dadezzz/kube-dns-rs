@@ -33,27 +33,27 @@ impl BlockerContext {
         let mut trie = Trie::new();
 
         list.into_iter()
-            .map(utils::name_to_labels)
-            .for_each(|labels| trie.insert(labels, list_type));
+            .map(utils::name_to_path)
+            .for_each(|labels| trie.insert(&labels, list_type));
 
         self.tries.entry(url.to_owned()).insert_entry(trie);
     }
 
     #[must_use]
-    pub fn lookup(&self, name: &Name) -> Option<(Vec<String>, Name, ListType)> {
-        let path = utils::name_to_labels(name);
-
-        type Identity = (Vec<String>, Name, Option<ListType>);
+    pub fn lookup(&self, name: &Name) -> Option<(Vec<&str>, Name, ListType)> {
+        type Identity<'a> = (Vec<&'a str>, Name, Option<ListType>);
         let identity: Identity = (Vec::new(), Name::root(), None);
+
+        let path = utils::name_to_path(name);
 
         let (urls, path, list_type): Identity = self
             .tries
             .par_iter()
             .map(|(url, trie)| {
-                let (path, status) = trie.find_closest_prefix(path.clone());
+                let (path, status) = trie.find_closest_prefix(&path);
                 (
-                    vec![url.to_owned()],
-                    utils::name_from_labels(path),
+                    vec![url.as_str()],
+                    utils::name_from_path(path),
                     status.copied(),
                 )
             })

@@ -62,7 +62,7 @@ impl BlockerRefresherTaskContext {
         Ok(names)
     }
 
-    async fn fetch_and_insert(&mut self) -> Result<(), Error> {
+    async fn fetch_and_insert(&self) -> Result<(), Error> {
         let lines = self.fetch_list(&self.url).await?;
 
         self.context
@@ -92,7 +92,7 @@ impl BlockerRefresher {
     }
 
     async fn add_list(&mut self, url: &str, status: ListType) -> Result<(), Error> {
-        let mut task_context = BlockerRefresherTaskContext {
+        let task_context = BlockerRefresherTaskContext {
             status,
             url: url.to_owned(),
             context: self.context.clone(),

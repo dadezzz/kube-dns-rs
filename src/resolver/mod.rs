@@ -96,26 +96,19 @@ impl ZoneHandler for ResolverZoneHandler {
 
         match lookup {
             Ok(v) => {
-                let mut answers_rset = RecordSet::with_ttl(
-                    name.into(),
-                    rtype,
-                    (Instant::now() - v.valid_until())
-                        .as_secs()
-                        .try_into()
-                        .unwrap(),
-                );
+                let ttl = v
+                    .valid_until()
+                    .duration_since(Instant::now())
+                    .as_secs()
+                    .try_into()
+                    .unwrap();
+
+                let mut answers_rset = RecordSet::with_ttl(name.into(), rtype, ttl);
                 answers_rset.set_records(v.answers().into());
 
                 let answers = LookupRecords::new(lookup_options, Arc::new(answers_rset));
 
-                let mut additionals_rset = RecordSet::with_ttl(
-                    name.into(),
-                    rtype,
-                    (Instant::now() - v.valid_until())
-                        .as_secs()
-                        .try_into()
-                        .unwrap(),
-                );
+                let mut additionals_rset = RecordSet::with_ttl(name.into(), rtype, ttl);
                 additionals_rset.set_records(v.answers().into());
 
                 let additionals = if additionals_rset.is_empty() {

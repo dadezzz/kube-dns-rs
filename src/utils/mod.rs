@@ -89,10 +89,10 @@ where
         });
 
     if record_set.is_empty() {
-        return None;
+        None
+    } else {
+        Some(record_set)
     }
-
-    Some(record_set)
 }
 
 #[must_use]
@@ -111,14 +111,14 @@ where
         });
 
     if record_set.is_empty() {
-        return None;
+        None
+    } else {
+        Some(record_set)
     }
-
-    Some(record_set)
 }
 
 #[must_use]
-pub fn break_with_nxdomain() -> LookupControlFlow<AuthLookup> {
+pub const fn break_with_nxdomain() -> LookupControlFlow<AuthLookup> {
     LookupControlFlow::Break(Err(LookupError::ResponseCode(ResponseCode::NXDomain)))
 }
 
@@ -136,7 +136,7 @@ pub fn continue_with_recordset(
 }
 
 #[must_use]
-pub fn name_to_labels(name: &Name) -> Vec<&str> {
+pub fn name_to_path(name: &Name) -> Vec<&str> {
     name.iter()
         .map(|l| str::from_utf8(l).unwrap())
         .rev()
@@ -144,7 +144,7 @@ pub fn name_to_labels(name: &Name) -> Vec<&str> {
 }
 
 #[must_use]
-pub fn name_from_labels<I, D, L>(labels: I) -> Name
+pub fn name_from_path<I, D, L>(labels: I) -> Name
 where
     I: IntoIterator<IntoIter = D>,
     D: DoubleEndedIterator<Item = L>,

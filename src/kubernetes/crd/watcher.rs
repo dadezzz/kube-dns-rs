@@ -28,20 +28,21 @@ impl KubernetesCrdWatcher {
         let mut tasks = JoinSet::new();
         tasks.spawn(async move {
             watcher(api, watcher::Config::default())
-                .for_each(async |event| match event.unwrap() {
-                    watcher::Event::InitApply(cr) | watcher::Event::Apply(cr) => {
+                .for_each(async |event| match event {
+                    Ok(watcher::Event::InitApply(cr)) | Ok(watcher::Event::Apply(cr)) => {
                         ctx.write().await.add_entry(
                             cr.metadata.namespace.as_ref().unwrap(),
                             cr.metadata.name.as_ref().unwrap(),
                             cr.clone(),
                         );
                     }
-                    watcher::Event::Delete(cr) => {
+                    Ok(watcher::Event::Delete(cr)) => {
                         ctx.write().await.remove_entry(
                             cr.metadata.namespace.as_ref().unwrap(),
                             cr.metadata.name.as_ref().unwrap(),
                         );
                     }
+                    Err(e) => tracing::error!("{e}"),
                     _ => {}
                 })
                 .await;

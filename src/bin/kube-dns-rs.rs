@@ -22,8 +22,7 @@ use kube_dns_rs::{
     },
 };
 
-#[tokio::main]
-async fn main() -> Result<(), init::Error> {
+async fn run() -> Result<(), init::Error> {
     init::start_logger();
     let args = Args::parse();
 
@@ -91,4 +90,11 @@ async fn main() -> Result<(), init::Error> {
     server.shutdown_gracefully().await.unwrap();
 
     Ok(())
+}
+
+#[tokio::main]
+async fn main() {
+    if let Err(e) = run().await {
+        tracing::error!("{e}")
+    }
 }

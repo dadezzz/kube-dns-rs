@@ -22,7 +22,10 @@ pub struct KubernetesSvcZoneHandler {
 }
 
 impl KubernetesSvcZoneHandler {
-    pub fn new(cluster_domain: LowerName, context: Arc<RwLock<KubernetesSvcContext>>) -> Self {
+    pub const fn new(
+        cluster_domain: LowerName,
+        context: Arc<RwLock<KubernetesSvcContext>>,
+    ) -> Self {
         Self {
             context,
             cluster_domain,
@@ -51,7 +54,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
         _request_info: Option<&RequestInfo<'_>>,
         lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
-        let labels = utils::name_to_labels(query_name);
+        let labels = utils::name_to_path(query_name);
 
         // Remove the cluster domain part to use exact matches on the match block.
         let (_, labels) = labels.split_at(self.origin().num_labels().into());
@@ -100,7 +103,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
                             .flat_map(|eps| {
                                 eps.endpoints
                                     .iter()
-                                    .map(|ep| ep.addresses())
+                                    .map(EndpointSliceEndpoint::addresses)
                                     .collect::<Vec<_>>()
                             })
                             .collect()

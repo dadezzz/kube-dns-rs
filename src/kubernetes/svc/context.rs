@@ -11,12 +11,12 @@ pub enum ServiceEntry {
 
 impl ServiceEntry {
     #[must_use]
-    pub fn cluster_ip(addresses: Vec<IpAddr>) -> Self {
+    pub const fn cluster_ip(addresses: Vec<IpAddr>) -> Self {
         Self::ClusterIpService { addresses }
     }
 
     #[must_use]
-    pub fn headless() -> Self {
+    pub const fn headless() -> Self {
         Self::HeadlessService
     }
 }
@@ -68,10 +68,9 @@ pub enum EndpointSliceEndpoint {
 
 impl EndpointSliceEndpoint {
     #[must_use]
-    pub fn addresses(&self) -> &Vec<IpAddr> {
+    pub const fn addresses(&self) -> &Vec<IpAddr> {
         match self {
-            EndpointSliceEndpoint::Kubernetes { addresses, .. }
-            | EndpointSliceEndpoint::External { addresses } => addresses,
+            Self::Kubernetes { addresses, .. } | Self::External { addresses } => addresses,
         }
     }
 }
