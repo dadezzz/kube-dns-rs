@@ -27,7 +27,7 @@ jobs:
           ${{ vars.PI_SETTINGS_JSON }}
           EOF
       - name: Generate response
-        uses: https://git.zarantonello.dev/projects/forgejo-agent@ef1dafb9d4892b52fe78f0570a3711ffb8ca35d5 # v1.11.17
+        uses: https://git.zarantonello.dev/projects/forgejo-agent@d1426543d547796822cbd0b39985c44e9bf3f067 # v1.11.18
         with:
           auth-token: ${{ secrets.CI_BOT_TOKEN }}
           auth-username: ci-bot
