@@ -23,12 +23,12 @@ use crate::utils;
 
 pub struct ResolverZoneHandler {
     origin: LowerName,
-    resolver: Resolver<TokioRuntimeProvider>,
+    pub resolver: Arc<Resolver<TokioRuntimeProvider>>,
 }
 
 impl ResolverZoneHandler {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(tls_client: rustls::ClientConfig) -> Self {
         let mut options = ResolverOpts::default();
         options.use_hosts_file = ResolveHosts::Never;
         // TODO: set to 0 to disable the inner cache when we implement our own.
@@ -57,12 +57,13 @@ impl ResolverZoneHandler {
 
         let resolver = Resolver::builder_with_config(config, TokioRuntimeProvider::new())
             .with_options(options)
+            .with_tls_config(tls_client)
             .build()
             .unwrap();
 
         Self {
             origin: Name::root().into(),
-            resolver,
+            resolver: Arc::new(resolver),
         }
     }
 }

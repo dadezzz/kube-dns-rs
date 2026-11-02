@@ -24,6 +24,16 @@ use kube_dns_rs::{
 
 async fn run() -> Result<(), init::Error> {
     init::start_logger();
+
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
+    let tls_root_store =
+        rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let tls_client = rustls::ClientConfig::builder()
+        .with_root_certificates(tls_root_store)
+        .with_no_client_auth();
+
     let args = Args::parse();
 
     let settings = init::load_settings(&args.config)?;
@@ -31,8 +41,14 @@ async fn run() -> Result<(), init::Error> {
 
     let mut catalog = Catalog::new();
 
+    let resolver_handler = ResolverZoneHandler::new(tls_client.clone());
+
     let blocker_context: Arc<RwLock<BlockerContext>> = Arc::default();
-    let mut blocker_refresher = BlockerRefresher::new(blocker_context.clone());
+    let mut blocker_refresher = BlockerRefresher::new(
+        blocker_context.clone(),
+        tls_client,
+        resolver_handler.resolver.clone(),
+    );
 
     for block_list_url in settings.blocker.blocklist_urls {
         blocker_refresher
@@ -49,7 +65,6 @@ async fn run() -> Result<(), init::Error> {
     }
 
     let blocker_handler = BlockerZoneHandler::new(blocker_context);
-    let resolver_handler = ResolverZoneHandler::new();
 
     let k8s_crd_ctx: Arc<RwLock<KubernetesCrdContext>> = Arc::default();
     let mut k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client.clone(), k8s_crd_ctx.clone());

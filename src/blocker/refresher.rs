@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, str::FromStr, sync::Arc, time::Duration};
 
 use hickory_server::proto::{ProtoError, rr::Name};
 use rayon::{iter::ParallelIterator, str::ParallelString};
@@ -7,7 +7,6 @@ use tokio::{
     task::{JoinError, JoinSet},
     time::interval,
 };
-use tracing::info;
 
 use crate::blocker::context::ListType;
 
@@ -21,6 +20,27 @@ pub enum Error {
     NameParse(ProtoError),
     #[error("failed to join task: {0}")]
     TaskJoin(JoinError),
+}
+
+#[derive(Clone)]
+struct ReqwestResolver {
+    resolver: Arc<hickory_resolver::TokioResolver>,
+}
+
+impl reqwest::dns::Resolve for ReqwestResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let self_cloned = self.clone();
+
+        Box::pin(async move {
+            let lookup = self_cloned
+                .resolver
+                .lookup_ip(Name::from_utf8(name.as_str()).unwrap())
+                .await?;
+
+            let ips = lookup.into_iter().map(|ip| SocketAddr::new(ip, 0));
+            return Ok(Box::new(ips.into_iter()) as reqwest::dns::Addrs);
+        })
+    }
 }
 
 struct BlockerRefresherTaskContext {
@@ -70,7 +90,7 @@ impl BlockerRefresherTaskContext {
             .await
             .insert_list(&self.url, lines.iter(), self.status);
 
-        info!("refreshed list {}, found {} domains", self.url, lines.len());
+        tracing::info!("refreshed list {}, found {} domains", self.url, lines.len());
         Ok(())
     }
 }
@@ -83,10 +103,21 @@ pub struct BlockerRefresher {
 }
 
 impl BlockerRefresher {
-    pub fn new(context: Arc<RwLock<BlockerContext>>) -> Self {
+    pub fn new(
+        context: Arc<RwLock<BlockerContext>>,
+        tls_client: rustls::ClientConfig,
+        resolver: Arc<hickory_resolver::TokioResolver>,
+    ) -> Self {
+        let resolver = ReqwestResolver { resolver };
+
         Self {
             tasks: JoinSet::new(),
-            http_client: reqwest::Client::new(),
+            http_client: reqwest::Client::builder()
+                .dns_resolver(resolver)
+                .tls_backend_preconfigured(tls_client)
+                .gzip(true)
+                .build()
+                .unwrap(),
             context,
         }
     }
@@ -104,7 +135,7 @@ impl BlockerRefresher {
         // Download the list synchronously the first time, so that it's already
         // blocking when listeners start.
         interval.tick().await;
-        task_context.fetch_and_insert().await.unwrap();
+        task_context.fetch_and_insert().await?;
 
         self.tasks.spawn(async move {
             const DEFAULT_RETRIES: u64 = 5;
@@ -133,13 +164,13 @@ impl BlockerRefresher {
 
     pub async fn add_block_list(&mut self, url: &str) -> Result<(), Error> {
         self.add_list(url, ListType::Block).await?;
-        info!("added new block list {url}");
+        tracing::info!("added new block list {url}");
         Ok(())
     }
 
     pub async fn add_allow_list(&mut self, url: &str) -> Result<(), Error> {
         self.add_list(url, ListType::Allow).await?;
-        info!("added new allow list {url}");
+        tracing::info!("added new allow list {url}");
         Ok(())
     }
 

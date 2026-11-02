@@ -42,6 +42,36 @@ impl<V> Trie<V> {
         current_node.value = Some(value);
     }
 
+    pub fn remove<'a, I, S>(&mut self, path: &'a I) -> Option<V>
+    where
+        &'a I: IntoIterator<Item = S>,
+        S: AsRef<str> + Debug,
+    {
+        let mut path_iter = path.into_iter().peekable();
+        let mut parent_node = &mut self.root;
+
+        let mut last_key = None;
+        while let Some(key) = path_iter.next() {
+            if path_iter.peek().is_some() {
+                parent_node = parent_node.children.get_mut(key.as_ref())?;
+            } else {
+                last_key = Some(key);
+            }
+        }
+
+        last_key.and_then(|last_key| {
+            let child_node = parent_node.children.get_mut(last_key.as_ref())?;
+            let child_node_value = child_node.value.take();
+
+            // If the node doesn't have childrens then we can remove it.
+            if child_node.children.is_empty() {
+                parent_node.children.remove(last_key.as_ref());
+            }
+
+            child_node_value
+        })
+    }
+
     pub fn get_mut<'a, I, S>(&mut self, path: &'a I) -> Option<&mut V>
     where
         &'a I: IntoIterator<Item = S>,
@@ -91,7 +121,7 @@ impl<V> Trie<V> {
     }
 }
 
-impl<V: Clone> Default for Trie<V> {
+impl<V> Default for Trie<V> {
     fn default() -> Self {
         Self::new()
     }
@@ -129,5 +159,27 @@ mod test {
         let (matched_path, value) = trie.find_closest_prefix(&["a", "b", "c"]);
         assert_eq!(matched_path, ["a", "b"]);
         assert_eq!(value, Some(&true));
+    }
+
+    #[test]
+    fn removes_the_correct_item() {
+        let mut trie = create_trie();
+        trie.insert(&["a"], false);
+        let remove_result = trie.remove(&["a", "b"]);
+        assert_eq!(remove_result, Some(true));
+        assert_eq!(trie.get(&["a"]), Some(&false));
+        assert_eq!(trie.get(&["a", "b"]), None);
+    }
+
+    #[test]
+    fn removes_the_correct_item_with_child() {
+        let mut trie = create_trie();
+        trie.insert(&["a"], false);
+        trie.insert(&["a", "b", "c"], false);
+        let remove_result = trie.remove(&["a", "b"]);
+        assert_eq!(remove_result, Some(true));
+        assert_eq!(trie.get(&["a"]), Some(&false));
+        assert_eq!(trie.get(&["a", "b"]), None);
+        assert_eq!(trie.get(&["a", "b", "c"]), Some(&false));
     }
 }
