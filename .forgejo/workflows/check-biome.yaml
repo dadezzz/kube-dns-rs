@@ -1,0 +1,24 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ forge.ref }}-${{ forge.workflow }}
+
+jobs:
+  check-biome:
+    container:
+      image: git.zarantonello.dev/infra/ci-biome:v2026.10.30.2@sha256:5d6a68f8cc904eebae58c553002e53b8b1f6d758df427c5f591831a191057eb8
+    name: Check files with biome
+    runs-on: srv-generic
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone --filter=blob:none --no-checkout https://${{ forge.token }}:x-oauth-basic@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
+          git checkout --quiet ${{ forge.sha }};
+      - name: Run biome
+        run: biome ci --reporter summary >> $FORGEJO_STEP_SUMMARY
+
+name: check-biome.yaml
+
+"on":
+  pull_request:
+    branches:
+      - main

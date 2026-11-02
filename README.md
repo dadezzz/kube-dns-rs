@@ -101,7 +101,6 @@ cargo build --release
 ```
 
 Binaries:
-
 - `kube-dns-rs` — the DNS server
 - `crdgen` — generates the `DnsRecord` CRD definition YAML
 
@@ -138,7 +137,6 @@ dig @127.0.0.1 -p 1053 example.com
 ### Deploy to Kubernetes
 
 Reference manifests live in [`examples/kubernetes/`](examples/kubernetes/):
-
 - `namespace.yaml`, `serviceaccount.yaml`, `clusterrole.yaml`,
   `clusterrolebinding.yaml` — RBAC: the server needs `watch` on `services`,
   `discovery.k8s.io/endpointslices`, and `zarantonello.dev/dnsrecords`.

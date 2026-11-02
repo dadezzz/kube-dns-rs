@@ -8,7 +8,6 @@ making changes.
 `kube-dns-rs` is a Kubernetes-aware DNS server written in Rust. It runs as a
 container inside a Kubernetes cluster and answers DNS queries from three
 sources, in precedence order:
-
 1. `DnsRecord` custom resources (arbitrary A/AAAA records) —
    `src/kubernetes/crd/`
 2. Block/allow lists (blocked names → NXDOMAIN) — `src/blocker/`
@@ -23,7 +22,6 @@ Two binaries in `Cargo.toml`: `kube-dns-rs` (the server) and `crdgen`
 ## Architecture
 
 The entry point is `src/bin/kube-dns-rs.rs`. The flow:
-
 1. Parse CLI args (`src/args.rs`, `--config`, default
    `/etc/kube-dns-rs/config.yaml`).
 2. Load YAML settings (`src/settings.rs`): blocker list URLs,
@@ -43,7 +41,6 @@ Each feature keeps live state in a `*Context` struct (`#[derive(Default)]`,
 plain `HashMap`/`Trie` fields), wrapped in `Arc<RwLock<...>>`, owned by its
 handler and mutated by a watcher/refresher task (which the binary drives to
 completion before/can run alongside the server):
-
 - `BlockerContext` — `HashMap<url, Trie<ListType>>`, refreshed by
   `BlockerRefresher` every 48h.
 - `KubernetesCrdContext` — `HashMap<k8s-ref, DnsRecord>` + a rebuilt
