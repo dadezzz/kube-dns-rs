@@ -5,7 +5,7 @@ concurrency:
 jobs:
   check:
     container:
-      image: git.zarantonello.dev/infra/ci-rust:v2026.11.04.1@sha256:62c3284102ae8d3f3ea2749b897b1d29dc0ef0a5b5ad6671e357d5099319bb41
+      image: git.zarantonello.dev/infra/ci-rust:v2026.11.05.1@sha256:58c6ee29a1aa8cc7091296fd78adccdc50aa60901a2595a9ebd0897e519b1252
     name: Check with formatters
     runs-on: srv-generic
     steps:
