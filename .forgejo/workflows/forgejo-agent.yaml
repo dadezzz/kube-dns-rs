@@ -1,7 +1,7 @@
 jobs:
   respond:
     container:
-      image: git.zarantonello.dev/infra/ci-rust:v2026.11.05.1@sha256:58c6ee29a1aa8cc7091296fd78adccdc50aa60901a2595a9ebd0897e519b1252
+      image: git.zarantonello.dev/infra/ci-rust:v2026.11.06.1@sha256:b6ee299b3759bd9ca63b067821a709dc573f311e5e90cfc375544cf245875356
       # The composite action in action.yaml can save the binary to speed up
       # subsequent runs.
       volumes:
@@ -27,7 +27,7 @@ jobs:
           ${{ vars.PI_SETTINGS_JSON }}
           EOF
       - name: Generate response
-        uses: https://git.zarantonello.dev/projects/forgejo-agent@c9d7a832dbb3f9312f1dc0974accba6728c58194 # v1.11.20
+        uses: https://git.zarantonello.dev/projects/forgejo-agent@82de6301f65492b0275a9c3edd53e6246b554ce3 # v1.11.21
         with:
           auth-token: ${{ secrets.CI_BOT_TOKEN }}
           auth-username: ci-bot

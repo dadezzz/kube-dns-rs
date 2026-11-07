@@ -1,4 +1,4 @@
-FROM git.zarantonello.dev/infra/ci-rust:v2026.11.05.1@sha256:58c6ee29a1aa8cc7091296fd78adccdc50aa60901a2595a9ebd0897e519b1252 AS builder
+FROM git.zarantonello.dev/infra/ci-rust:v2026.11.06.1@sha256:b6ee299b3759bd9ca63b067821a709dc573f311e5e90cfc375544cf245875356 AS builder
 
 WORKDIR /srv
 
