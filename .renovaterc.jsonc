@@ -4,6 +4,7 @@
   "extends": [
     "config:best-practices",
     "customManagers:dockerfileVersions",
+    "customManagers:biomeVersions",
     ":semanticCommits"
   ],
   "packageRules": [
