@@ -12,7 +12,7 @@
       "automerge": true,
       "groupName": "CI dependencies",
       "groupSlug": "ci",
-      "matchFileNames": [".devcontainer/**", ".forgejo/**"],
+      "matchFileNames": [".devcontainer/**", ".forgejo/**", "biome.jsonc"],
       "matchUpdateTypes": ["!major"]
     },
     // Group also the CI image update in Dockerfile.
