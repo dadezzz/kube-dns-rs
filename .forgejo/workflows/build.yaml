@@ -6,6 +6,8 @@ jobs:
   build:
     container:
       image: quay.io/containers/aio:latest@sha256:b69c7118807ff3b8ff2eeca90baf916e1e459156ad7ae08690f08fc16fefa243
+      volumes:
+        - forgejo-runner-cache-podman:/var/lib/containers/storage
     env:
       IMAGE: git.zarantonello.dev/${{ forge.repository }}:${{ forge.ref_name }}
     name: Build the container
@@ -15,10 +17,6 @@ jobs:
         run: |
           git clone --filter=blob:none --no-checkout https://${{ forge.token }}:x-oauth-basic@git.zarantonello.dev/${{ forge.repository }} ${{ forge.workspace }};
           git checkout --quiet ${{ forge.sha }};
-      - name: Disable fuse-overlayfs
-        run: |
-          sed -i 's|mountopt = "nodev,fsync=0"||' /etc/containers/storage.conf;
-          sed -i 's|mount_program = "/usr/bin/fuse-overlayfs"||' /etc/containers/storage.conf;
       - name: Login to the container registry
         run: podman login git.zarantonello.dev -u ci-bot -p ${{ secrets.CI_BOT_REGISTRY_TOKEN }}
       - name: Build the container image
