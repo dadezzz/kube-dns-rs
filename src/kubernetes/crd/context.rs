@@ -27,7 +27,7 @@ impl KubernetesCrdContext {
         }
 
         self.entries.push(record);
-        self.rebuild_indexes(namespace, name);
+        self.rebuild_indexes();
         debug!("added new record from CRD {namespace}/{name}");
     }
 
@@ -35,18 +35,20 @@ impl KubernetesCrdContext {
         let idx = self.get_idx_by_k8s_ref(namespace, name);
         if let Some(idx) = idx {
             self.entries.swap_remove(*idx);
-            self.rebuild_indexes(namespace, name);
+            self.rebuild_indexes();
             debug!("removed record from CRD {namespace}/{name}");
         }
     }
 
-    fn rebuild_indexes(&mut self, namespace: &str, name: &str) {
+    fn rebuild_indexes(&mut self) {
         self.by_k8s_ref.clear();
         self.by_net.clear();
         self.by_labels = Trie::new();
 
         for (idx, record) in self.entries.iter().enumerate() {
-            self.by_k8s_ref.insert(format!("{namespace}/{name}"), idx);
+            let namespace = record.metadata.namespace.as_ref().unwrap();
+            let name = record.metadata.name.as_ref().unwrap();
+            self.by_k8s_ref.insert(format!("{namespace}/{name}",), idx);
 
             let default_nets = vec![
                 IpNet::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0),

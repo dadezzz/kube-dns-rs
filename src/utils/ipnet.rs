@@ -1,5 +1,5 @@
 use std::{
-    net::{AddrParseError, IpAddr},
+    net::{AddrParseError, IpAddr, Ipv4Addr, Ipv6Addr},
     num::ParseIntError,
     str::FromStr,
 };
@@ -28,7 +28,7 @@ pub struct IpNet {
 
 impl IpNet {
     #[must_use]
-    pub fn new(addr: IpAddr, prefix_len: u32) -> Self {
+    pub const fn new(addr: IpAddr, prefix_len: u32) -> Self {
         Self { addr, prefix_len }
     }
 
@@ -71,10 +71,10 @@ impl TryFrom<String> for IpNet {
         let prefix_len = match addr {
             IpAddr::V4(_) => {
                 let prefix_len = prefix_len
-                    .map_or(Ok(0), u32::from_str)
+                    .map_or(Ok(Ipv4Addr::BITS), u32::from_str)
                     .map_err(IpNetError::InvalidPrefixLen)?;
 
-                if prefix_len > 32 {
+                if prefix_len > Ipv4Addr::BITS {
                     return Err(IpNetError::InvalidPrefixLenSize);
                 }
 
@@ -82,10 +82,10 @@ impl TryFrom<String> for IpNet {
             }
             IpAddr::V6(_) => {
                 let prefix_len = prefix_len
-                    .map_or(Ok(0), u32::from_str)
+                    .map_or(Ok(Ipv6Addr::BITS), u32::from_str)
                     .map_err(IpNetError::InvalidPrefixLen)?;
 
-                if prefix_len > 128 {
+                if prefix_len > Ipv6Addr::BITS {
                     return Err(IpNetError::InvalidPrefixLenSize);
                 }
 

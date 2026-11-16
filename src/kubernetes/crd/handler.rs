@@ -50,12 +50,17 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
         lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
         let lock = self.context.read().await;
-        let target = lock.get_entry(query_name, &request_info.unwrap().src.ip());
 
-        let Some(entries) = target else {
+        let Some(entries) = lock.get_entry(query_name, &request_info.unwrap().src.ip()) else {
             // No CRD entry for hostname.
             return LookupControlFlow::Skip;
         };
+
+        if entries.is_empty() {
+            // Name exists, but was filtered by client rules, so requests from
+            // this client go upstream.
+            return LookupControlFlow::Skip;
+        }
 
         // CNAME takes precedence if present. The first entry that is found
         // prevails on the others, so it best practice to ensure that only one
