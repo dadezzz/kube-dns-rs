@@ -23,7 +23,7 @@ impl KubernetesCrdContext {
     pub fn add_entry(&mut self, namespace: &str, name: &str, record: DnsRecord) {
         let idx = self.get_idx_by_k8s_ref(namespace, name);
         if let Some(idx) = idx {
-            self.entries.remove(*idx);
+            self.entries.swap_remove(*idx);
         }
 
         self.entries.push(record);
@@ -34,7 +34,7 @@ impl KubernetesCrdContext {
     pub fn remove_entry(&mut self, namespace: &str, name: &str) {
         let idx = self.get_idx_by_k8s_ref(namespace, name);
         if let Some(idx) = idx {
-            self.entries.remove(*idx);
+            self.entries.swap_remove(*idx);
             self.rebuild_indexes(namespace, name);
             debug!("removed record from CRD {namespace}/{name}");
         }

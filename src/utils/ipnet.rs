@@ -34,7 +34,7 @@ impl IpNet {
 
     #[must_use]
     pub fn contains_host(&self, host: &IpAddr) -> bool {
-        match (self.addr, host) {
+        match (self.addr.to_canonical(), host.to_canonical()) {
             (IpAddr::V4(net_addr), IpAddr::V4(host_addr)) => {
                 let mask_bits = !u32::MAX.unbounded_shr(self.prefix_len);
                 let net_bits = net_addr.to_bits() & mask_bits;
