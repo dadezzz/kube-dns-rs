@@ -5,7 +5,7 @@ concurrency:
 jobs:
   build:
     container:
-      image: quay.io/containers/aio:latest@sha256:b69c7118807ff3b8ff2eeca90baf916e1e459156ad7ae08690f08fc16fefa243
+      image: quay.io/containers/aio:latest@sha256:43d01cfd845c17abade2699625652001fe1ca06aefc461a64ed5fe00cd43eb17
       volumes:
         - forgejo-runner-cache-podman:/var/lib/containers/storage
     env:
