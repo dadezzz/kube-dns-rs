@@ -10,7 +10,6 @@ use hickory_server::{
 };
 use tokio::sync::RwLock;
 
-use super::DnsRecordData;
 use crate::{kubernetes::crd::context::KubernetesCrdContext, utils};
 
 pub struct KubernetesCrdZoneHandler {
@@ -47,50 +46,35 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
         &self,
         query_name: &LowerName,
         query_type: RecordType,
-        _request_info: Option<&RequestInfo<'_>>,
+        request_info: Option<&RequestInfo<'_>>,
         lookup_options: LookupOptions,
     ) -> LookupControlFlow<AuthLookup> {
         let lock = self.context.read().await;
-        let target = lock.get_entry(query_name);
+        let target = lock.get_entry(query_name, &request_info.unwrap().src.ip());
 
-        let record_set = match query_type {
-            RecordType::A => target.and_then(|data| {
-                utils::new_a_record_set(
-                    query_name,
-                    data.iter()
-                        .filter_map(|d| match d {
-                            DnsRecordData::A { addresses } => Some(addresses),
-                            _ => None,
-                        })
-                        .flatten()
-                        .copied(),
-                    TTL,
-                )
-            }),
-            RecordType::AAAA => target.and_then(|data| {
-                utils::new_aaaa_record_set(
-                    query_name,
-                    data.iter()
-                        .filter_map(|d| match d {
-                            DnsRecordData::AAAA { addresses } => Some(addresses),
-                            _ => None,
-                        })
-                        .flatten()
-                        .copied(),
-                    TTL,
-                )
-            }),
-            _ => None,
+        let Some(entries) = target else {
+            // No CRD entry for hostname.
+            return LookupControlFlow::Skip;
+        };
+
+        // CNAME takes precedence if present. The first entry that is found
+        // prevails on the others, so it best practice to ensure that only one
+        // DnsRecord k8s resource is created for the CNAME domain.
+        let record_set = if let Some(e) = entries.iter().find(|e| e.rtype() == RecordType::CNAME) {
+            utils::new_record_set(query_name, RecordType::CNAME, TTL, e.rdatas())
+        } else {
+            let rdata = entries
+                .iter()
+                .filter(|e| e.rtype() == query_type)
+                .flat_map(|e| e.rdatas());
+            utils::new_record_set(query_name, query_type, TTL, rdata)
         };
 
         if let Some(rs) = record_set {
             utils::continue_with_recordset(lookup_options, rs, None)
-        } else if target.is_some() {
-            // CRD entry present but not for record type.
-            LookupControlFlow::Break(Ok(AuthLookup::Empty))
         } else {
-            // No CRD entry for hostname.
-            LookupControlFlow::Skip
+            // CRD entry present but not for record type / client address.
+            LookupControlFlow::Break(Ok(AuthLookup::Empty))
         }
     }
 
@@ -99,11 +83,16 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
         request: &Request,
         lookup_options: LookupOptions,
     ) -> (LookupControlFlow<AuthLookup>, Option<TSigResponseContext>) {
-        let lookups = request
-            .queries
-            .queries()
-            .iter()
-            .map(|q| self.lookup(q.name(), q.query_type(), None, lookup_options));
+        let request_info = request.request_info().unwrap();
+
+        let lookups = request.queries.queries().iter().map(|q| {
+            self.lookup(
+                q.name(),
+                q.query_type(),
+                Some(&request_info),
+                lookup_options,
+            )
+        });
 
         let lookups = join_all(lookups).await;
 

@@ -1,3 +1,7 @@
+pub mod ipnet;
+pub mod name;
+pub mod trie;
+
 use std::{
     net::{Ipv4Addr, Ipv6Addr},
     sync::Arc,
@@ -6,7 +10,7 @@ use std::{
 use hickory_server::{
     proto::{
         op::ResponseCode,
-        rr::{self, Name, RecordSet, RecordType, domain::IntoLabel},
+        rr::{self, Name, RData, RecordSet, RecordType, domain::IntoLabel},
     },
     zone_handler::{AuthLookup, LookupControlFlow, LookupError, LookupOptions, LookupRecords},
 };
@@ -109,6 +113,25 @@ where
         .for_each(|rdata| {
             record_set.add_rdata(rdata);
         });
+
+    if record_set.is_empty() {
+        None
+    } else {
+        Some(record_set)
+    }
+}
+
+#[must_use]
+pub fn new_record_set<N, I>(name: N, rtype: RecordType, ttl: u32, rdata: I) -> Option<RecordSet>
+where
+    N: Into<Name>,
+    I: IntoIterator<Item = RData>,
+{
+    let mut record_set = RecordSet::with_ttl(name.into(), rtype, ttl);
+
+    for d in rdata {
+        record_set.add_rdata(d);
+    }
 
     if record_set.is_empty() {
         None

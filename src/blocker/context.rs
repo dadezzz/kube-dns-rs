@@ -1,7 +1,7 @@
 use hickory_server::proto::rr::Name;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::{trie::Trie, utils};
+use crate::utils::{self, trie::Trie};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ListType {

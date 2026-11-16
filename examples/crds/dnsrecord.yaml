@@ -17,6 +17,11 @@ spec:
           properties:
             spec:
               properties:
+                clients:
+                  items:
+                    type: string
+                  nullable: true
+                  type: array
                 data:
                   items:
                     oneOf:
@@ -24,6 +29,8 @@ spec:
                           - A
                       - required:
                           - AAAA
+                      - required:
+                          - CNAME
                     properties:
                       A:
                         properties:
@@ -44,6 +51,15 @@ spec:
                             type: array
                         required:
                           - addresses
+                        type: object
+                      CNAME:
+                        properties:
+                          names:
+                            items:
+                              type: string
+                            type: array
+                        required:
+                          - names
                         type: object
                     type: object
                   type: array

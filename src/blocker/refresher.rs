@@ -38,7 +38,7 @@ impl reqwest::dns::Resolve for ReqwestResolver {
                 .await?;
 
             let ips = lookup.into_iter().map(|ip| SocketAddr::new(ip, 0));
-            return Ok(Box::new(ips.into_iter()) as reqwest::dns::Addrs);
+            Ok(Box::new(ips.into_iter()) as reqwest::dns::Addrs)
         })
     }
 }
