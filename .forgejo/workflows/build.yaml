@@ -5,7 +5,7 @@ concurrency:
 jobs:
   build:
     container:
-      image: quay.io/containers/aio:latest@sha256:43d01cfd845c17abade2699625652001fe1ca06aefc461a64ed5fe00cd43eb17
+      image: git.zarantonello.dev/infra/ci-podman:v2026.11.17.14@sha256:36d3efe22d65834f2abde80050d6c4c93b2a2e03d003bc2a6e83593f4f820111
       volumes:
         - forgejo-runner-cache-podman:/var/lib/containers/storage
     env:
@@ -21,9 +21,11 @@ jobs:
         run: podman login git.zarantonello.dev -u ci-bot -p ${{ secrets.CI_BOT_REGISTRY_TOKEN }}
       - name: Build the container image
         run: |
-          podman build \
-            --label org.opencontainers.image.source="https://git.zarantonello.dev/${{ forge.repository }}" \
-            --label org.opencontainers.image.revision="${{ forge.sha }}" \
+          podman build --network=host \
+            --annotation org.opencontainers.image.source="https://git.zarantonello.dev/${{ forge.repository }}" \
+            --annotation org.opencontainers.image.url"https://git.zarantonello.dev/${{ forge.repository }}" \
+            --annotation org.opencontainers.image.revision="${{ forge.sha }}" \
+            --annotation org.opencontainers.image.version=""${{ forge.ref_name }}" \
             --tag ${{ env.IMAGE }} .
       - name: Push the container image
         run: podman push ${{ env.IMAGE }}

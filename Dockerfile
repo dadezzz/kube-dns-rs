@@ -3,6 +3,7 @@ FROM git.zarantonello.dev/infra/ci-rust:v2026.11.07.1@sha256:315a302f8dfcbb3afa6
 WORKDIR /srv
 
 COPY . .
+ENV RUSTFLAGS="-C target-cpu=x86-64-v3"
 RUN --mount=type=cache,sharing=locked,target=/usr/local/cargo/registry cargo build --release
 
 # Final image.
