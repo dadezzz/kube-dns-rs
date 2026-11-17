@@ -5,10 +5,14 @@ use std::{
 
 use futures::future::join_all;
 use hickory_server::{
-    proto::rr::{LowerName, Name, RecordSet, RecordType, TSigResponseContext},
+    proto::{
+        op::ResponseCode,
+        rr::{self, LowerName, Name, RData, RecordSet, RecordType, TSigResponseContext},
+    },
     server::{Request, RequestInfo},
     zone_handler::{
-        AuthLookup, AxfrPolicy, LookupControlFlow, LookupOptions, ZoneHandler, ZoneType,
+        AuthLookup, AxfrPolicy, Catalog, LookupControlFlow, LookupError, LookupOptions,
+        ZoneHandler, ZoneType,
     },
 };
 use tokio::sync::RwLock;
@@ -19,13 +23,15 @@ const TTL: u32 = 30;
 
 pub struct KubernetesCrdZoneHandler {
     origin: LowerName,
+    catalog: Catalog,
     context: Arc<RwLock<KubernetesCrdContext>>,
 }
 
 impl KubernetesCrdZoneHandler {
-    pub fn new(context: Arc<RwLock<KubernetesCrdContext>>) -> Self {
+    pub fn new(catalog: Catalog, context: Arc<RwLock<KubernetesCrdContext>>) -> Self {
         Self {
             origin: Name::root().into(),
+            catalog,
             context,
         }
     }
@@ -78,7 +84,29 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
                     rdata.clone(),
                 );
 
-                return utils::continue_with_recordset(lookup_options, vec![record_set], None);
+                let RData::CNAME(rr::rdata::CNAME(name)) = rdata.first().unwrap() else {
+                    return LookupControlFlow::Break(Err(LookupError::ResponseCode(
+                        ResponseCode::ServFail,
+                    )));
+                };
+
+                let mut name: LowerName = name.into();
+                name.set_fqdn(true);
+                let zone_handlers = self.catalog.find(&name);
+
+                if let Some(zh) = zone_handlers {
+                    let lookups = zh
+                        .iter()
+                        .map(|zh| zh.lookup(&name, query_type, request_info, lookup_options));
+
+                    let mut lookups = join_all(lookups).await;
+                    lookups.push(utils::continue_with_recordset(
+                        lookup_options,
+                        vec![record_set],
+                        None,
+                    ));
+                    return utils::handler_search_aggregator(lookups, lookup_options, false);
+                }
             }
 
             if query_type != RecordType::ANY && !rtype_idx.contains(&i) {

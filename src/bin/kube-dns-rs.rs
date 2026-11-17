@@ -39,9 +39,7 @@ async fn run() -> Result<(), init::Error> {
     let settings = init::load_settings(&args.config)?;
     let k8s_client = init::load_kubernetes().await?;
 
-    let mut catalog = Catalog::new();
-
-    let resolver_handler = ResolverZoneHandler::new(tls_client.clone());
+    let resolver_handler = Arc::new(ResolverZoneHandler::new(tls_client.clone()));
 
     let blocker_context: Arc<RwLock<BlockerContext>> = Arc::default();
     let mut blocker_refresher = BlockerRefresher::new(
@@ -64,29 +62,35 @@ async fn run() -> Result<(), init::Error> {
             .map_err(init::Error::DownloadList)?;
     }
 
-    let blocker_handler = BlockerZoneHandler::new(blocker_context);
-
-    let k8s_crd_ctx: Arc<RwLock<KubernetesCrdContext>> = Arc::default();
-    let mut k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client.clone(), k8s_crd_ctx.clone());
-    let k8s_crd_handler = KubernetesCrdZoneHandler::new(k8s_crd_ctx);
-
-    catalog.upsert(
-        Name::root().into(),
-        vec![
-            Arc::new(k8s_crd_handler),
-            Arc::new(blocker_handler),
-            Arc::new(resolver_handler),
-        ],
-    );
+    let blocker_handler = Arc::new(BlockerZoneHandler::new(blocker_context));
 
     let mut fq_cluster_domain = settings.kubernetes.cluster_domain;
     fq_cluster_domain.set_fqdn(true);
 
     let k8s_svc_ctx: Arc<RwLock<KubernetesSvcContext>> = Arc::default();
-    let mut k8s_svc_watcher = KubernetesSvcWatcher::new(k8s_client, k8s_svc_ctx.clone());
-    let k8s_svc_handler = KubernetesSvcZoneHandler::new(fq_cluster_domain.clone(), k8s_svc_ctx);
+    let mut k8s_svc_watcher = KubernetesSvcWatcher::new(k8s_client.clone(), k8s_svc_ctx.clone());
+    let k8s_svc_handler = Arc::new(KubernetesSvcZoneHandler::new(
+        fq_cluster_domain.clone(),
+        k8s_svc_ctx,
+    ));
 
-    catalog.upsert(fq_cluster_domain, vec![Arc::new(k8s_svc_handler)]);
+    let mut k8s_crd_catalog = Catalog::new();
+    k8s_crd_catalog.upsert(
+        Name::root().into(),
+        vec![blocker_handler.clone(), resolver_handler.clone()],
+    );
+    k8s_crd_catalog.upsert(fq_cluster_domain.clone(), vec![k8s_svc_handler.clone()]);
+
+    let k8s_crd_ctx: Arc<RwLock<KubernetesCrdContext>> = Arc::default();
+    let mut k8s_crd_watcher = KubernetesCrdWatcher::new(k8s_client, k8s_crd_ctx.clone());
+    let k8s_crd_handler = Arc::new(KubernetesCrdZoneHandler::new(k8s_crd_catalog, k8s_crd_ctx));
+
+    let mut catalog = Catalog::new();
+    catalog.upsert(
+        Name::root().into(),
+        vec![k8s_crd_handler, blocker_handler, resolver_handler],
+    );
+    catalog.upsert(fq_cluster_domain, vec![k8s_svc_handler]);
 
     let mut server = hickory_server::Server::new(catalog);
     let (udp, tcp) = init::bind_listeners(settings.listeners.tcp, settings.listeners.udp).await?;

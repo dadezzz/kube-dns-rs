@@ -12,8 +12,9 @@ run as a container inside the cluster it serves.
 
 - **Kubernetes-native records** — watches `Services` and `EndpointSlices` in
   every namespace and serves `A`/`AAAA` records under your cluster domain.
-- **Custom `DnsRecord` CRD** — declare arbitrary `A`/`AAAA` records for any
-  fully qualified domain name (e.g. `example.com`) from inside Kubernetes.
+- **Custom `DnsRecord` CRD** — declare arbitrary `A`/`AAAA`/`CNAME` records for
+  any fully qualified domain name (e.g. `example.com`) from inside Kubernetes.
+  CNAME targets are followed server-side (including into the cluster domain).
 - **Recursive resolver** — anything not handled by Kubernetes records or block
   lists is resolved upstream over TLS (Quad9 and Cloudflare by default).
 - **Blocking** — wildcard block lists (with optional allow lists) are downloaded
@@ -26,17 +27,23 @@ run as a container inside the cluster it serves.
 The server registers three zone handlers on the root zone (plus one on the
 cluster domain):
 
-| Handler                    | Zone               | Responsibility                                                       |
-| -------------------------- | ------------------ | -------------------------------------------------------------------- |
-| `KubernetesCrdZoneHandler` | `.` (root)         | Serves `DnsRecord` CRD entries (exact FQDN matches, A/AAAA, TTL 30s) |
-| `BlockerZoneHandler`       | `.` (root)         | Consults block/allow lists and returns `NXDOMAIN` for blocked names  |
-| `ResolverZoneHandler`      | `.` (root)         | Forwards all remaining queries upstream over DNS-over-TLS            |
-| `KubernetesSvcZoneHandler` | `<cluster_domain>` | Serves `Service`/`EndpointSlice` records                             |
+| Handler                    | Zone               | Responsibility                                                             |
+| -------------------------- | ------------------ | -------------------------------------------------------------------------- |
+| `KubernetesCrdZoneHandler` | `.` (root)         | Serves `DnsRecord` CRD entries (exact FQDN matches, A/AAAA/CNAME, TTL 30s) |
+| `BlockerZoneHandler`       | `.` (root)         | Consults block/allow lists and returns `NXDOMAIN` for blocked names        |
+| `ResolverZoneHandler`      | `.` (root)         | Forwards all remaining queries upstream over DNS-over-TLS                  |
+| `KubernetesSvcZoneHandler` | `<cluster_domain>` | Serves `Service`/`EndpointSlice` records                                   |
 
 Lookup order is determined by the catalog registered in
 `src/bin/kube-dns-rs.rs`: CRD records take precedence, then blocking, then
 recursive resolution. Queries for names under the cluster domain are answered by
 the SVC handler.
+
+Because the CRD handler follows `CNAME` targets itself (see below), the binary
+builds a **second, internal catalog** holding only the blocker, resolver and
+SVC handlers (`k8s_crd_catalog` in `src/bin/kube-dns-rs.rs`). The CRD handler is
+deliberately absent from it — it can neither re-enter itself nor expose one
+client's CRD records to another client's CNAME lookup.
 
 ### Service / EndpointSlice records
 
@@ -82,6 +89,49 @@ regenerated at any time:
 ```sh
 cargo run --bin crdgen > dnsrecord.yaml
 ```
+
+#### `CNAME` records
+
+A record may also alias another name:
+
+```yaml
+spec:
+  fqdn: www.example.com
+  data:
+    - CNAME:
+        name: my-service.my-namespace.svc.cluster.local.
+```
+
+A single `DnsRecord` may not mix a `CNAME` with other record types (and may not
+declare two `CNAME`s); the watcher rejects such objects with
+`KubernetesCrdError::MultipleCNAMEs`.
+
+Unlike a plain authoritative server, the CRD handler **follows the target
+itself** and returns the `CNAME` together with whatever the target resolves to:
+
+- The target is looked up in the internal catalog, so it can be a name under the
+  cluster domain (served by the SVC handler) or any external name (served by the
+  blocker and then the recursive resolver).
+- The target is **not** resolved through other `DnsRecord`s. A chain such as
+  `a.example.com CNAME b.example.com`, where `b` is itself a `DnsRecord`, resolves
+  upstream and therefore fails; point the CNAME at the real `A`/`AAAA` name
+  instead.
+- The original query type is propagated to the target lookup (`A`, `AAAA`, `ANY`,
+  …), and the `CNAME` RR is added to the answer section alongside the target's
+  records, all with TTL 30s.
+- The target lookup currently replaces the answer rather than being merged into
+  it: if the target is blocked, or does not exist under the cluster domain, the
+  whole queried name is answered with `NXDOMAIN`; if the upstream resolver
+  reports a non-NXDOMAIN failure, the name is answered with an empty `NOERROR`.
+  In both cases the `CNAME` RR itself is not returned.
+- The `clients:` network filter applies to the queried name only; the target is
+  resolved without per-client restrictions.
+- Write the target as a fully qualified name **with a trailing dot**. A relative
+  target never matches the root or the cluster-domain zone in the internal
+  catalog, so it is looked up upstream instead of being resolved against the
+  cluster domain.
+- Chasing a target costs an upstream (DNS-over-TLS) round trip on a cache miss,
+  so use `A`/`AAAA` records directly when a `CNAME` is not required.
 
 ### Domain blocking
 

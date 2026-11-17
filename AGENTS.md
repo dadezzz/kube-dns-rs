@@ -9,7 +9,7 @@ making changes.
 container inside a Kubernetes cluster and answers DNS queries from three
 sources, in precedence order:
 
-1. `DnsRecord` custom resources (arbitrary A/AAAA records) —
+1. `DnsRecord` custom resources (arbitrary A/AAAA/CNAME records) —
    `src/kubernetes/crd/`
 2. Block/allow lists (blocked names → NXDOMAIN) — `src/blocker/`
 3. Recursive resolution upstream over DoT (Quad9, Cloudflare) — `src/resolver/`
@@ -33,7 +33,13 @@ The entry point is `src/bin/kube-dns-rs.rs`. The flow:
    blocking is active from the first query).
 5. Register zone handlers: root zone gets `KubernetesCrdZoneHandler` →
    `BlockerZoneHandler` → `ResolverZoneHandler`; the cluster domain gets
-   `KubernetesSvcZoneHandler`.
+   `KubernetesSvcZoneHandler`. A second, internal `Catalog`
+   (`k8s_crd_catalog`) is handed to `KubernetesCrdZoneHandler` so it can follow
+   CNAME targets: root zone gets `BlockerZoneHandler` → `ResolverZoneHandler`,
+   cluster domain gets `KubernetesSvcZoneHandler`. It intentionally does **not**
+   contain the CRD handler (no self-recursion, no per-client CRD leakage through
+   a CNAME), so every handler/zone added to the server catalog must be added
+   here too if it should be reachable as a CNAME target.
 6. Bind UDP + TCP sockets (port 1053 by default), then run refresher/watcher
    tasks in a `tokio::select!` until `ctrl-c`, then shut down gracefully.
 
@@ -78,6 +84,17 @@ Domain matching uses the generic prefix trie in `src/trie.rs`.
     `BlockerContext::lookup`).
   - Blocked names → `NXDOMAIN` (`break_with_nxdomain`); unknown CRD names →
     `Skip` (fall through to resolver); known-but-wrong-type → `Empty`.
+  - A CRD `CNAME` is followed by the CRD handler itself: the target is resolved
+    through the internal catalog and the `CNAME` RR is returned in the answer
+    section together with the target's records (TTL 30s). CNAME → CRD chains are
+    deliberately unsupported (targets resolve through blocker/resolver/SVC
+    only), targets must be FQDNs to match the catalog zones, the `clients:` net
+    filter applies to the queried name only, and a blocked/missing target
+    propagates its error (so the whole name becomes `NXDOMAIN`/empty `NOERROR`
+    without the `CNAME`). A `DnsRecord` cannot mix a `CNAME` with other data
+    (`KubernetesCrdError::MultipleCNAMEs`).
+  - Don't hold a `*Context` read guard across an `.await` in a handler: tokio's
+    `RwLock` is fair, so a pending watcher write blocks all later readers.
   - Headless services resolve from ready, non-terminating EndpointSlice
     endpoints; task referencing a k8s name is resolved via
     `<endpoint>.<svc>.<ns>.svc`.
