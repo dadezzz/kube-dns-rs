@@ -58,7 +58,7 @@ impl BlockerContext {
                 let (path, status) = list.trie.find_closest_prefix(&path);
                 (
                     vec![list.url.as_str()],
-                    utils::name_from_path(path),
+                    utils::name_from_path(path).unwrap(),
                     status.map(|()| list.list_type),
                 )
             })

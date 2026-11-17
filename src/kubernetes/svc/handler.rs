@@ -1,4 +1,4 @@
-use std::{net::IpAddr, sync::Arc};
+use std::{borrow::Cow, net::IpAddr, sync::Arc};
 
 use futures::future::join_all;
 use hickory_server::{
@@ -56,13 +56,25 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
     ) -> LookupControlFlow<AuthLookup> {
         let labels = utils::name_to_path(query_name);
 
-        // Remove the cluster domain part to use exact matches on the match block.
-        let (_, labels) = labels.split_at(self.origin().num_labels().into());
+        // Remove the cluster domain part + "svc" to use the separated labels on
+        // the match block.
+        let Some((pre, labels)) = labels.split_at_checked((self.origin().num_labels() + 1).into())
+        else {
+            return LookupControlFlow::Skip;
+        };
+
+        // Check that the start of the address was the cluster domain, and that
+        // it is immediately followed by "svc".
+        if utils::name_to_path(&self.cluster_domain) != pre[..pre.len() - 1]
+            || pre.last() != Some(&Cow::Borrowed("svc"))
+        {
+            return LookupControlFlow::Skip;
+        }
 
         let lock = self.context.read().await;
 
         let targets: Vec<&Vec<IpAddr>> = match labels {
-            ["svc", svc_ns, svc_name, k8s_name] => {
+            [svc_ns, svc_name, k8s_name] => {
                 let endpointslices = lock.get_epss(svc_ns, svc_name);
 
                 endpointslices
@@ -90,7 +102,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
             //     // return all ports
             //     // or endpoint slice ports if clusterip none
             // }
-            ["svc", svc_ns, svc_name] => {
+            [svc_ns, svc_name] => {
                 let service = lock.get_svc(svc_ns, svc_name);
 
                 match service {
@@ -178,7 +190,7 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
         }
 
         if let Some(record_set) = record_set {
-            utils::continue_with_recordset(lookup_options, record_set, None)
+            utils::continue_with_recordset(lookup_options, vec![record_set], None)
         } else if targets.is_empty() {
             // Zone doesn't exist.
             return utils::break_with_nxdomain();

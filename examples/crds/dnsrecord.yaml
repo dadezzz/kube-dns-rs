@@ -54,12 +54,10 @@ spec:
                         type: object
                       CNAME:
                         properties:
-                          names:
-                            items:
-                              type: string
-                            type: array
+                          name:
+                            type: string
                         required:
-                          - names
+                          - name
                         type: object
                     type: object
                   type: array

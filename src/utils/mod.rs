@@ -3,12 +3,14 @@ pub mod name;
 pub mod trie;
 
 use std::{
+    borrow::Cow,
     net::{Ipv4Addr, Ipv6Addr},
     sync::Arc,
 };
 
 use hickory_server::{
     proto::{
+        ProtoError,
         op::ResponseCode,
         rr::{self, Name, RData, RecordSet, RecordType, domain::IntoLabel},
     },
@@ -121,23 +123,24 @@ where
     }
 }
 
+pub fn add_rdata_to_record_set<I>(record_set: &mut RecordSet, rdata: I)
+where
+    I: IntoIterator<Item = RData>,
+{
+    for d in rdata {
+        record_set.add_rdata(d);
+    }
+}
+
 #[must_use]
-pub fn new_record_set<N, I>(name: N, rtype: RecordType, ttl: u32, rdata: I) -> Option<RecordSet>
+pub fn new_record_set<N, I>(name: N, rtype: RecordType, ttl: u32, rdata: I) -> RecordSet
 where
     N: Into<Name>,
     I: IntoIterator<Item = RData>,
 {
     let mut record_set = RecordSet::with_ttl(name.into(), rtype, ttl);
-
-    for d in rdata {
-        record_set.add_rdata(d);
-    }
-
-    if record_set.is_empty() {
-        None
-    } else {
-        Some(record_set)
-    }
+    add_rdata_to_record_set(&mut record_set, rdata);
+    record_set
 }
 
 #[must_use]
@@ -148,30 +151,32 @@ pub const fn break_with_nxdomain() -> LookupControlFlow<AuthLookup> {
 #[must_use]
 pub fn continue_with_recordset(
     lookup_options: LookupOptions,
-    authority_record_set: RecordSet,
-    additional_record_set: Option<RecordSet>,
+    authorities: Vec<RecordSet>,
+    additionals: Option<Vec<RecordSet>>,
 ) -> LookupControlFlow<AuthLookup> {
-    let authorities = LookupRecords::new(lookup_options, Arc::new(authority_record_set));
-    let additionals =
-        additional_record_set.map(|rs| LookupRecords::new(lookup_options, Arc::new(rs)));
+    let authorities = LookupRecords::many(
+        lookup_options,
+        authorities.into_iter().map(Arc::new).collect(),
+    );
+    let additionals = additionals
+        .map(|rs| LookupRecords::many(lookup_options, rs.into_iter().map(Arc::new).collect()));
 
     LookupControlFlow::Continue(Ok(AuthLookup::answers(authorities, additionals)))
 }
 
 #[must_use]
-pub fn name_to_path(name: &Name) -> Vec<&str> {
+pub fn name_to_path(name: &Name) -> Vec<Cow<'_, str>> {
     name.iter()
-        .map(|l| str::from_utf8(l).unwrap())
+        .map(|l| String::from_utf8_lossy(l))
         .rev()
         .collect()
 }
 
-#[must_use]
-pub fn name_from_path<I, D, L>(labels: I) -> Name
+pub fn name_from_path<I, D, L>(labels: I) -> Result<Name, ProtoError>
 where
     I: IntoIterator<IntoIter = D>,
     D: DoubleEndedIterator<Item = L>,
     L: IntoLabel,
 {
-    Name::from_labels(labels.into_iter().rev()).unwrap()
+    Name::from_labels(labels.into_iter().rev())
 }

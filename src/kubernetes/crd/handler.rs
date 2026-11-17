@@ -1,8 +1,11 @@
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use futures::future::join_all;
 use hickory_server::{
-    proto::rr::{LowerName, Name, RecordType, TSigResponseContext},
+    proto::rr::{LowerName, Name, RecordSet, RecordType, TSigResponseContext},
     server::{Request, RequestInfo},
     zone_handler::{
         AuthLookup, AxfrPolicy, LookupControlFlow, LookupOptions, ZoneHandler, ZoneType,
@@ -11,6 +14,8 @@ use hickory_server::{
 use tokio::sync::RwLock;
 
 use crate::{kubernetes::crd::context::KubernetesCrdContext, utils};
+
+const TTL: u32 = 30;
 
 pub struct KubernetesCrdZoneHandler {
     origin: LowerName,
@@ -25,8 +30,6 @@ impl KubernetesCrdZoneHandler {
         }
     }
 }
-
-const TTL: u32 = 30;
 
 #[async_trait::async_trait]
 impl ZoneHandler for KubernetesCrdZoneHandler {
@@ -51,36 +54,65 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
     ) -> LookupControlFlow<AuthLookup> {
         let lock = self.context.read().await;
 
-        let Some(entries) = lock.get_entry(query_name, &request_info.unwrap().src.ip()) else {
-            // No CRD entry for hostname.
-            return LookupControlFlow::Skip;
-        };
-
-        if entries.is_empty() {
-            // Name exists, but was filtered by client rules, so requests from
-            // this client go upstream.
+        let labels_idx = lock.get_idx_by_name(query_name);
+        if labels_idx.is_empty() {
             return LookupControlFlow::Skip;
         }
 
-        // CNAME takes precedence if present. The first entry that is found
-        // prevails on the others, so it best practice to ensure that only one
-        // DnsRecord k8s resource is created for the CNAME domain.
-        let record_set = if let Some(e) = entries.iter().find(|e| e.rtype() == RecordType::CNAME) {
-            utils::new_record_set(query_name, RecordType::CNAME, TTL, e.rdatas())
-        } else {
-            let rdata = entries
+        let client_ip = request_info.unwrap().src.ip();
+        let net_idx = lock.get_idx_by_client_ip(&client_ip);
+        let allowed_idx: HashSet<_> = labels_idx.intersection(&net_idx).copied().collect();
+        if allowed_idx.is_empty() {
+            return LookupControlFlow::Break(Ok(AuthLookup::Empty));
+        }
+
+        let rtype_idx = lock.get_idx_by_rtype(query_type);
+        let mut final_set = HashSet::new();
+        for i in allowed_idx {
+            let entry = &lock.entries[i];
+            if let Some(rdata) = entry.rdata.get(&RecordType::CNAME) {
+                let record_set = utils::new_record_set(
+                    query_name.clone(),
+                    RecordType::CNAME,
+                    TTL,
+                    rdata.clone(),
+                );
+
+                return utils::continue_with_recordset(lookup_options, vec![record_set], None);
+            }
+
+            if query_type != RecordType::ANY && !rtype_idx.contains(&i) {
+                continue;
+            }
+
+            final_set.insert(i);
+        }
+
+        let mut final_by_rname_rtype = HashMap::<(Name, RecordType), RecordSet>::new();
+        for i in final_set {
+            let entry = &lock.entries[i];
+
+            for d in entry
+                .rdata
                 .iter()
-                .filter(|e| e.rtype() == query_type)
-                .flat_map(|e| e.rdatas());
-            utils::new_record_set(query_name, query_type, TTL, rdata)
-        };
-
-        if let Some(rs) = record_set {
-            utils::continue_with_recordset(lookup_options, rs, None)
-        } else {
-            // CRD entry present but not for record type / client address.
-            LookupControlFlow::Break(Ok(AuthLookup::Empty))
+                .filter(|d| query_type == RecordType::ANY || *d.0 == query_type)
+            {
+                final_by_rname_rtype
+                    .entry((entry.name.clone().into(), *d.0))
+                    .and_modify(|rs| {
+                        utils::add_rdata_to_record_set(rs, d.1.clone());
+                    })
+                    .or_insert_with(|| {
+                        utils::new_record_set(query_name.clone(), *d.0, TTL, d.1.clone())
+                    });
+            }
         }
+
+        utils::continue_with_recordset(
+            lookup_options,
+            final_by_rname_rtype.into_values().collect(),
+            None,
+        )
     }
 
     async fn search(

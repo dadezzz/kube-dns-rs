@@ -2,20 +2,10 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use kube::{Api, Client, runtime::watcher};
-use tokio::{
-    sync::RwLock,
-    task::{JoinError, JoinSet},
-};
+use tokio::{sync::RwLock, task::JoinSet};
+use tracing::error;
 
-use crate::kubernetes::crd::DnsRecord;
-
-use super::context::KubernetesCrdContext;
-
-#[derive(thiserror::Error, Debug)]
-pub enum KubernetesCrdWatcherError {
-    #[error("failed to join task: {0}")]
-    TaskJoin(JoinError),
-}
+use super::{DnsRecord, KubernetesCrdError, context::KubernetesCrdContext};
 
 pub struct KubernetesCrdWatcher {
     tasks: JoinSet<()>,
@@ -28,22 +18,19 @@ impl KubernetesCrdWatcher {
         let mut tasks = JoinSet::new();
         tasks.spawn(async move {
             watcher(api, watcher::Config::default())
-                .for_each(async |event| match event {
-                    Ok(watcher::Event::InitApply(cr) | watcher::Event::Apply(cr)) => {
-                        ctx.write().await.add_entry(
-                            cr.metadata.namespace.as_ref().unwrap(),
-                            cr.metadata.name.as_ref().unwrap(),
-                            cr.clone(),
-                        );
+                .for_each(async |event| {
+                    let res = match event {
+                        Ok(watcher::Event::InitApply(cr) | watcher::Event::Apply(cr)) => {
+                            ctx.write().await.add_entry(&cr)
+                        }
+                        Ok(watcher::Event::Delete(cr)) => ctx.write().await.remove_entry(&cr),
+                        Err(e) => Err(KubernetesCrdError::K8SError(e)),
+                        _ => Ok(()),
+                    };
+
+                    if let Err(e) = res {
+                        error!("{e}");
                     }
-                    Ok(watcher::Event::Delete(cr)) => {
-                        ctx.write().await.remove_entry(
-                            cr.metadata.namespace.as_ref().unwrap(),
-                            cr.metadata.name.as_ref().unwrap(),
-                        );
-                    }
-                    Err(e) => tracing::error!("{e}"),
-                    _ => {}
                 })
                 .await;
         });
@@ -51,12 +38,12 @@ impl KubernetesCrdWatcher {
         Self { tasks }
     }
 
-    pub async fn run(&mut self) -> Result<(), KubernetesCrdWatcherError> {
+    pub async fn run(&mut self) -> Result<(), KubernetesCrdError> {
         self.tasks
             .join_next()
             .await
             .unwrap()
-            .map_err(KubernetesCrdWatcherError::TaskJoin)
+            .map_err(KubernetesCrdError::TaskJoin)
     }
 }
 

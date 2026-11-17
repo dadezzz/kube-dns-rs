@@ -13,7 +13,7 @@ pub enum IpNetError {
     MalformedString,
     #[error("the address cannot be parsed: {0}")]
     InvalidAddress(AddrParseError),
-    #[error("the prefix lenght cannot be parsed: {0}")]
+    #[error("the prefix length cannot be parsed: {0}")]
     InvalidPrefixLen(ParseIntError),
     #[error("the prefix length is too big for the address type specified")]
     InvalidPrefixLenSize,
@@ -22,35 +22,50 @@ pub enum IpNetError {
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(try_from = "String", into = "String")]
 pub struct IpNet {
-    addr: IpAddr,
-    prefix_len: u32,
+    addr: Ipv6Addr,
+    mask_bits: u128,
 }
 
 impl IpNet {
     #[must_use]
-    pub const fn new(addr: IpAddr, prefix_len: u32) -> Self {
-        Self { addr, prefix_len }
+    pub const fn new(addr: IpAddr, mut prefix_len: u32) -> Self {
+        let addr = match addr {
+            IpAddr::V4(ipv4_addr) => {
+                prefix_len += Ipv6Addr::BITS - Ipv4Addr::BITS;
+                ipv4_addr.to_ipv6_mapped()
+            }
+            IpAddr::V6(ipv6_addr) => ipv6_addr,
+        };
+
+        let mask_bits = !u128::MAX.unbounded_shr(prefix_len);
+        // Mask the address here, to provide a canonical form that avoids
+        // duplication in places like the KubernetesCrdContext by_net index.
+        let addr = Ipv6Addr::from_bits(addr.to_bits() & mask_bits);
+
+        Self { addr, mask_bits }
+    }
+
+    /// Returns `::/0`.
+    #[must_use]
+    pub const fn unspecified() -> Self {
+        Self {
+            addr: Ipv6Addr::UNSPECIFIED,
+            mask_bits: 0,
+        }
     }
 
     #[must_use]
     pub fn contains_host(&self, host: &IpAddr) -> bool {
-        match (self.addr.to_canonical(), host.to_canonical()) {
-            (IpAddr::V4(net_addr), IpAddr::V4(host_addr)) => {
-                let mask_bits = !u32::MAX.unbounded_shr(self.prefix_len);
-                let net_bits = net_addr.to_bits() & mask_bits;
-                let host_bits = host_addr.to_bits() & mask_bits;
+        let host = match host {
+            IpAddr::V4(ipv4_addr) => ipv4_addr.to_ipv6_mapped(),
+            IpAddr::V6(ipv6_addr) => *ipv6_addr,
+        };
 
-                net_bits == host_bits
-            }
-            (IpAddr::V6(net_addr), IpAddr::V6(host_addr)) => {
-                let mask_bits = !u128::MAX.unbounded_shr(self.prefix_len);
-                let net_bits = net_addr.to_bits() & mask_bits;
-                let host_bits = host_addr.to_bits() & mask_bits;
+        // Already masked in ::new().
+        let net_bits = self.addr.to_bits();
+        let host_bits = host.to_bits() & self.mask_bits;
 
-                net_bits == host_bits
-            }
-            _ => false,
-        }
+        net_bits == host_bits
     }
 }
 
@@ -93,13 +108,13 @@ impl TryFrom<String> for IpNet {
             }
         };
 
-        Ok(IpNet { addr, prefix_len })
+        Ok(IpNet::new(addr, prefix_len))
     }
 }
 
 impl From<IpNet> for String {
     fn from(value: IpNet) -> Self {
-        format!("{}/{}", value.addr, value.prefix_len)
+        format!("{}/{}", value.addr, value.mask_bits.count_ones())
     }
 }
 
@@ -110,10 +125,18 @@ mod test {
     use super::IpNet;
 
     #[test]
-    fn any_network() {
+    fn any_network_ipv4() {
         let net = IpNet::try_from("1.1.1.1/0".to_owned()).unwrap();
         assert!(net.contains_host(&IpAddr::from_str("1.2.3.4").unwrap()));
         assert!(!net.contains_host(&IpAddr::from_str("1:3::").unwrap()));
+        assert!(net.contains_host(&IpAddr::from_str("::ffff:1.2.3.4").unwrap()));
+    }
+
+    #[test]
+    fn any_network() {
+        let net = IpNet::try_from("::/0".to_owned()).unwrap();
+        assert!(net.contains_host(&IpAddr::from_str("1.2.3.4").unwrap()));
+        assert!(net.contains_host(&IpAddr::from_str("1:3::").unwrap()));
     }
 
     #[test]
