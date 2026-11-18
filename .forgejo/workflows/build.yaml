@@ -23,7 +23,7 @@ jobs:
         run: |
           podman build --network=host \
             --annotation org.opencontainers.image.source="https://git.zarantonello.dev/${{ forge.repository }}" \
-            --annotation org.opencontainers.image.url"https://git.zarantonello.dev/${{ forge.repository }}" \
+            --annotation org.opencontainers.image.url="https://git.zarantonello.dev/${{ forge.repository }}" \
             --annotation org.opencontainers.image.revision="${{ forge.sha }}" \
             --annotation org.opencontainers.image.version="${{ forge.ref_name }}" \
             --tag ${{ env.IMAGE }} .
