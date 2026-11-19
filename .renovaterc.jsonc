@@ -1,13 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "assignees": ["davide"],
-  "extends": [
-    "config:best-practices",
-    "customManagers:dockerfileVersions",
-    "customManagers:biomeVersions",
-    ":semanticCommits"
-  ],
   "packageRules": [
+    // Rebuild the container if something is updated in the Dockerfile.
+    {
+      "automerge": true,
+      "matchFileNames": ["Dockerfile"],
+      "semanticCommitType": "fix"
+    },
     {
       "automerge": true,
       "groupName": "CI dependencies",
@@ -15,17 +15,16 @@
       "matchFileNames": [".devcontainer/**", ".forgejo/**", "biome.jsonc"],
       "matchUpdateTypes": ["!major"]
     },
-    // Group also the CI image update in Dockerfile.
     {
       "automerge": true,
       "groupName": "CI dependencies",
       "groupSlug": "ci",
-      "matchPackageNames": ["git.zarantonello.dev/infra/ci-rust"]
-    },
-    {
-      "automerge": true,
-      "matchFileNames": ["Dockerfile"],
-      "matchUpdateTypes": ["!major"]
+      "matchPackageNames": [
+        // Automerge the ci image and don't trigger a release even in Dockerfile.
+        "git.zarantonello.dev/infra/ci-rust"
+      ],
+      // Override the 'fix' commit type set by the Dockerfile rule.
+      "semanticCommitType": "chore"
     }
   ]
 }
