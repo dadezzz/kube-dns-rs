@@ -4,9 +4,13 @@
   "packageRules": [
     // Rebuild the container if something is updated in the Dockerfile.
     {
-      "automerge": true,
       "matchFileNames": ["Dockerfile"],
       "semanticCommitType": "fix"
+    },
+    {
+      "automerge": true,
+      "matchFileNames": ["Dockerfile"],
+      "matchUpdateTypes": ["!major"]
     },
     {
       "automerge": true,
