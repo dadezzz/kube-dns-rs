@@ -15,5 +15,8 @@ blocker:
 kubernetes:
   cluster_domain: k8s.zarantonello.dev
 listeners:
-  tcp: "[::]:1053"
-  udp: "[::]:1053"
+  - addr: "[::]:1053"
+    type: UDP
+  - addr: "[::]:1053"
+    timeout: 10
+    type: TCP

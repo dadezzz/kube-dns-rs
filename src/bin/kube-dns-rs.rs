@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use clap::Parser;
 use hickory_server::{proto::rr::Name, zone_handler::Catalog};
@@ -93,10 +93,7 @@ async fn run() -> Result<(), init::Error> {
     catalog.upsert(fq_cluster_domain, vec![k8s_svc_handler]);
 
     let mut server = hickory_server::Server::new(catalog);
-    let (udp, tcp) = init::bind_listeners(settings.listeners.tcp, settings.listeners.udp).await?;
-    server.register_socket(udp);
-    // Values taken from hickory's server implementation.
-    server.register_listener(tcp, Duration::from_secs(10), 32);
+    init::bind_listeners(&mut server, &settings.listeners).await?;
 
     tokio::select! {
         _ = blocker_refresher.run() =>(),
