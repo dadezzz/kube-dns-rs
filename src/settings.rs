@@ -12,6 +12,41 @@ pub struct BlockerSettings {
 
 #[derive(Deserialize)]
 #[serde(tag = "type")]
+pub enum UpstreamSettings {
+    UDP {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+    },
+    TCP {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+    },
+    TLS {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+        hostname: String,
+    },
+    HTTPS {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+        hostname: String,
+        path: String,
+    },
+    QUIC {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+        hostname: String,
+    },
+    HTTP3 {
+        addr: SocketAddr,
+        trust_negative_responses: bool,
+        hostname: String,
+        path: String,
+    },
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type")]
 pub enum ListenerSettings {
     UDP {
         addr: SocketAddr,
@@ -72,6 +107,7 @@ pub struct Settings {
     pub blocker: BlockerSettings,
     pub kubernetes: KubernetesSettings,
     pub listeners: Vec<ListenerSettings>,
+    pub upstreams: Vec<UpstreamSettings>,
 }
 
 impl Settings {

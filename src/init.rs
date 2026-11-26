@@ -1,5 +1,6 @@
 use std::{path::Path, sync::Arc, time::Duration};
 
+use hickory_resolver::config::{ConnectionConfig, NameServerConfig};
 use kube::Client;
 use rustls::{
     ServerConfig,
@@ -9,7 +10,7 @@ use tokio::net::{TcpListener, UdpSocket};
 
 use crate::{
     blocker,
-    settings::{ListenerSettings, Settings},
+    settings::{ListenerSettings, Settings, UpstreamSettings},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -59,7 +60,7 @@ fn load_tls_server_config(
 
 pub async fn bind_listeners<T: hickory_server::server::RequestHandler>(
     server: &mut hickory_server::Server<T>,
-    listeners: &Vec<ListenerSettings>,
+    listeners: &[ListenerSettings],
 ) -> Result<(), Error> {
     for l in listeners {
         match l {
@@ -169,6 +170,75 @@ pub async fn bind_listeners<T: hickory_server::server::RequestHandler>(
     }
 
     Ok(())
+}
+
+#[must_use]
+pub fn configure_upstreams(upstreams: &[UpstreamSettings]) -> Vec<NameServerConfig> {
+    upstreams
+        .iter()
+        .map(|u| match u {
+            UpstreamSettings::UDP {
+                addr,
+                trust_negative_responses,
+            } => {
+                let mut connection = ConnectionConfig::udp();
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+            UpstreamSettings::TCP {
+                addr,
+                trust_negative_responses,
+            } => {
+                let mut connection = ConnectionConfig::tcp();
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+            UpstreamSettings::TLS {
+                addr,
+                trust_negative_responses,
+                hostname,
+            } => {
+                let mut connection = ConnectionConfig::tls(Arc::from(hostname.as_str()));
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+            UpstreamSettings::HTTPS {
+                addr,
+                trust_negative_responses,
+                hostname,
+                path,
+            } => {
+                let mut connection = ConnectionConfig::https(
+                    Arc::from(hostname.as_str()),
+                    Some(Arc::from(path.as_str())),
+                );
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+            UpstreamSettings::QUIC {
+                addr,
+                trust_negative_responses,
+                hostname,
+            } => {
+                let mut connection = ConnectionConfig::quic(Arc::from(hostname.as_str()));
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+            UpstreamSettings::HTTP3 {
+                addr,
+                trust_negative_responses,
+                hostname,
+                path,
+            } => {
+                let mut connection = ConnectionConfig::h3(
+                    Arc::from(hostname.as_str()),
+                    Some(Arc::from(path.as_str())),
+                );
+                connection.port = addr.port();
+                NameServerConfig::new(addr.ip(), *trust_negative_responses, vec![connection])
+            }
+        })
+        .collect()
 }
 
 pub async fn load_kubernetes() -> Result<Client, Error> {

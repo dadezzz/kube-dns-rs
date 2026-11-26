@@ -20,3 +20,20 @@ listeners:
   - addr: "[::]:1053"
     timeout: 10
     type: TCP
+upstreams:
+  - addr: 9.9.9.9:853
+    hostname: dns.quad9.net
+    trust_negative_responses: true
+    type: TLS
+  - addr: 149.112.112.112:853
+    hostname: dns.quad9.net
+    trust_negative_responses: true
+    type: TLS
+  - addr: 1.1.1.1:853
+    hostname: dns.quad9.net
+    trust_negative_responses: true
+    type: TLS
+  - addr: 1.0.0.1:853
+    hostname: dns.quad9.net
+    trust_negative_responses: true
+    type: TLS

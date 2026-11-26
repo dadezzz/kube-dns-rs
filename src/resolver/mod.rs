@@ -1,13 +1,9 @@
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    sync::Arc,
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 use futures::future::join_all;
 use hickory_resolver::{
     Resolver,
-    config::{NameServerConfig, ResolveHosts, ResolverConfig, ResolverOpts},
+    config::{ResolveHosts, ResolverConfig, ResolverOpts},
 };
 use hickory_server::{
     net::runtime::TokioRuntimeProvider,
@@ -19,7 +15,7 @@ use hickory_server::{
     },
 };
 
-use crate::utils;
+use crate::{init, settings::UpstreamSettings, utils};
 
 pub struct ResolverZoneHandler {
     origin: LowerName,
@@ -28,32 +24,14 @@ pub struct ResolverZoneHandler {
 
 impl ResolverZoneHandler {
     #[must_use]
-    pub fn new(tls_client: rustls::ClientConfig) -> Self {
+    pub fn new(upstreams: &[UpstreamSettings], tls_client: rustls::ClientConfig) -> Self {
+        let upstreams = init::configure_upstreams(upstreams);
+        let config = ResolverConfig::from_parts(None, Vec::new(), upstreams);
+
         let mut options = ResolverOpts::default();
         options.use_hosts_file = ResolveHosts::Never;
         // TODO: set to 0 to disable the inner cache when we implement our own.
         options.cache_size = 500;
-
-        let name_servers = vec![
-            NameServerConfig::tls(
-                IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)),
-                Arc::from("dns.quad9.net"),
-            ),
-            NameServerConfig::tls(
-                IpAddr::V4(Ipv4Addr::new(149, 112, 112, 112)),
-                Arc::from("dns.quad9.net"),
-            ),
-            NameServerConfig::tls(
-                IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)),
-                Arc::from("one.one.one.one"),
-            ),
-            NameServerConfig::tls(
-                IpAddr::V4(Ipv4Addr::new(1, 0, 0, 1)),
-                Arc::from("one.one.one.one"),
-            ),
-        ];
-
-        let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
 
         let resolver = Resolver::builder_with_config(config, TokioRuntimeProvider::new())
             .with_options(options)

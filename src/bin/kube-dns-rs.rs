@@ -39,7 +39,10 @@ async fn run() -> Result<(), init::Error> {
     let settings = init::load_settings(&args.config)?;
     let k8s_client = init::load_kubernetes().await?;
 
-    let resolver_handler = Arc::new(ResolverZoneHandler::new(tls_client.clone()));
+    let resolver_handler = Arc::new(ResolverZoneHandler::new(
+        &settings.upstreams,
+        tls_client.clone(),
+    ));
 
     let blocker_context: Arc<RwLock<BlockerContext>> = Arc::default();
     let mut blocker_refresher = BlockerRefresher::new(
