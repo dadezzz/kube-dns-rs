@@ -222,4 +222,8 @@ impl ZoneHandler for KubernetesSvcZoneHandler {
     async fn nsec_records(&self, _: &LowerName, _: LookupOptions) -> LookupControlFlow<AuthLookup> {
         LookupControlFlow::Skip
     }
+
+    fn metrics_label(&self) -> &'static str {
+        "k8s_svc_resolver"
+    }
 }

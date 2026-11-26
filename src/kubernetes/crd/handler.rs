@@ -170,4 +170,8 @@ impl ZoneHandler for KubernetesCrdZoneHandler {
     async fn nsec_records(&self, _: &LowerName, _: LookupOptions) -> LookupControlFlow<AuthLookup> {
         LookupControlFlow::Skip
     }
+
+    fn metrics_label(&self) -> &'static str {
+        "k8s_crd_resolver"
+    }
 }
